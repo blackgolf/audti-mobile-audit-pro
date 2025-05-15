@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 import CTAButton from './CTAButton';
+import { Link } from 'react-router-dom';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -29,17 +30,17 @@ const Navbar = () => {
       <div className="container mx-auto px-4 md:px-6">
         <div className="flex justify-between items-center">
           <div className="flex items-center">
-            <a href="/" className="flex items-center">
+            <Link to="/" className="flex items-center">
               <span className="font-bold text-2xl text-audti-primary">Aud<span className="text-audti-secondary">TI</span></span>
-            </a>
+            </Link>
           </div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <a href="#home" className="text-audti-primary hover:text-audti-secondary font-medium">Home</a>
-            <a href="#features" className="text-audti-primary hover:text-audti-secondary font-medium">Funcionalidades</a>
-            <a href="#support" className="text-audti-primary hover:text-audti-secondary font-medium">Suporte</a>
-            <a href="#contact" className="text-audti-primary hover:text-audti-secondary font-medium">Contato</a>
+            <Link to="/#home" className="text-audti-primary hover:text-audti-secondary font-medium">Home</Link>
+            <Link to="/#features" className="text-audti-primary hover:text-audti-secondary font-medium">Funcionalidades</Link>
+            <Link to="/support" className="text-audti-primary hover:text-audti-secondary font-medium">Suporte</Link>
+            <Link to="/#contact" className="text-audti-primary hover:text-audti-secondary font-medium">Contato</Link>
           </div>
 
           <div className="hidden md:block">
@@ -58,34 +59,34 @@ const Navbar = () => {
         {isMenuOpen && (
           <div className="md:hidden mt-4 pb-4 animate-fade-in">
             <div className="flex flex-col space-y-4">
-              <a 
-                href="#home" 
+              <Link 
+                to="/#home" 
                 className="text-audti-primary hover:text-audti-secondary font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Home
-              </a>
-              <a 
-                href="#features" 
+              </Link>
+              <Link 
+                to="/#features" 
                 className="text-audti-primary hover:text-audti-secondary font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Funcionalidades
-              </a>
-              <a 
-                href="#support" 
+              </Link>
+              <Link 
+                to="/support" 
                 className="text-audti-primary hover:text-audti-secondary font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Suporte
-              </a>
-              <a 
-                href="#contact" 
+              </Link>
+              <Link 
+                to="/#contact" 
                 className="text-audti-primary hover:text-audti-secondary font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Contato
-              </a>
+              </Link>
               <div className="pt-2">
                 <CTAButton variant="primary" className="w-full">Login</CTAButton>
               </div>
