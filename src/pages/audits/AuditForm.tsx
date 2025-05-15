@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/layouts/AppLayout';
@@ -342,20 +341,20 @@ const AuditForm = () => {
               <form>
                 {mockCategories.map((category) => (
                   <Card key={category.id} className="mb-4">
-                    <CardHeader className="pb-2">
-                      <CollapsibleTrigger
-                        onClick={() => toggleCategory(category.id)} 
-                        className="flex justify-between items-center w-full cursor-pointer"
-                      >
-                        <CardTitle>{category.name}</CardTitle>
-                        {openCategories[category.id] ? (
-                          <ChevronUp className="h-5 w-5" />
-                        ) : (
-                          <ChevronDown className="h-5 w-5" />
-                        )}
-                      </CollapsibleTrigger>
-                    </CardHeader>
-                    <Collapsible open={openCategories[category.id]}>
+                    <Collapsible 
+                      open={openCategories[category.id]} 
+                      onOpenChange={() => toggleCategory(category.id)}
+                    >
+                      <CardHeader className="pb-2">
+                        <CollapsibleTrigger className="flex justify-between items-center w-full cursor-pointer">
+                          <CardTitle>{category.name}</CardTitle>
+                          {openCategories[category.id] ? (
+                            <ChevronUp className="h-5 w-5" />
+                          ) : (
+                            <ChevronDown className="h-5 w-5" />
+                          )}
+                        </CollapsibleTrigger>
+                      </CardHeader>
                       <CollapsibleContent>
                         <CardContent className="pt-2">
                           <div className="space-y-6">
