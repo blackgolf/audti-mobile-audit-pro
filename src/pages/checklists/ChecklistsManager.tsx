@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -631,7 +630,10 @@ const ChecklistsManager = () => {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction variant="destructive" onClick={handleDeleteItem}>
+              <AlertDialogAction 
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90" 
+                onClick={handleDeleteItem}
+              >
                 Excluir
               </AlertDialogAction>
             </AlertDialogFooter>
