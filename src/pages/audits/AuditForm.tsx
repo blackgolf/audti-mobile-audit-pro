@@ -132,21 +132,31 @@ const AuditForm = () => {
       categoriesState[cat.id] = true;
     });
     setOpenCategories(categoriesState);
-  }, []);
+  }, [form]);
 
   // Handle unit selection from URL parameter
   useEffect(() => {
     const unitIdParam = searchParams.get('unitId');
+    
     if (unitIdParam) {
       const unitId = parseInt(unitIdParam);
       const unit = mockUnits.find(u => u.id === unitId);
+      
       if (unit) {
         setSelectedUnit(unit);
         form.setValue('unitId', unit.id);
         form.setValue('unitName', unit.name);
+      } else {
+        // Handle case where unit is not found
+        toast({
+          title: "Unidade não encontrada",
+          description: "A unidade selecionada não foi encontrada.",
+          variant: "destructive",
+        });
+        navigate('/units');
       }
     }
-  }, [searchParams]);
+  }, [searchParams, form, navigate, toast]);
 
   // Calculate the progress percentage
   const calculateProgress = () => {
@@ -299,13 +309,10 @@ const AuditForm = () => {
                   Por favor, selecione uma unidade para iniciar a auditoria
                 </p>
                 <Button 
-                  asChild 
+                  onClick={returnToUnits}
                   className="mt-4"
-                  onClick={returnToUnits} // This won't fire because of asChild, but adding for clarity
                 >
-                  <div onClick={returnToUnits} className="cursor-pointer">
-                    <ArrowLeft className="h-4 w-4 mr-2" /> Selecionar Unidade
-                  </div>
+                  <ArrowLeft className="h-4 w-4 mr-2" /> Selecionar Unidade
                 </Button>
               </div>
             </CardContent>

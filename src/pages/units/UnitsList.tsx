@@ -90,7 +90,7 @@ const UnitsList = () => {
     : units;
 
   const startAudit = (unitId: number) => {
-    // Use navigate instead of direct URL change to prevent full page refresh
+    // Direct navigation to audit form with unitId
     navigate(`/audits/new?unitId=${unitId}`);
   };
 
