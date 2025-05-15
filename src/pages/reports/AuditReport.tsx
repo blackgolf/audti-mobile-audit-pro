@@ -213,16 +213,19 @@ const AuditReport = () => {
           </CardContent>
         </Card>
 
-        {/* Score History Chart */}
+        {/* Score History Chart - Fixed height and contained within card */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle>Histórico de Notas</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="h-[300px]">
+            <div className="h-[250px] w-full">
               <ChartContainer config={chartConfig}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={historicalData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <BarChart 
+                    data={historicalData} 
+                    margin={{ top: 10, right: 10, left: 10, bottom: 20 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis domain={[0, 5]} />
