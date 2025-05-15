@@ -213,24 +213,24 @@ const AuditReport = () => {
           </CardContent>
         </Card>
 
-        {/* Score History Chart - Fixed height and contained within card */}
-        <Card>
+        {/* Score History Chart - Corrected to prevent overflow */}
+        <Card className="overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle>Histórico de Notas</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="h-[250px] w-full">
+          <CardContent className="pt-0 pb-6">
+            <div className="h-[200px] w-full relative">
               <ChartContainer config={chartConfig}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart 
                     data={historicalData} 
-                    margin={{ top: 10, right: 10, left: 10, bottom: 20 }}
+                    margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis domain={[0, 5]} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="month" tickMargin={5} />
+                    <YAxis domain={[0, 5]} tickCount={6} />
                     <Tooltip />
-                    <Bar dataKey="score" name="Nota" fill="#3E92CC" />
+                    <Bar dataKey="score" name="Nota" fill="#3E92CC" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
