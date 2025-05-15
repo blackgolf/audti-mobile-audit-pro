@@ -19,7 +19,8 @@ import {
   Plus, 
   Camera, 
   Save, 
-  FileCheck 
+  FileCheck,
+  ArrowLeft 
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -266,6 +267,11 @@ const AuditForm = () => {
     });
   };
 
+  // Return to units list
+  const returnToUnits = () => {
+    navigate('/units');
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -292,8 +298,14 @@ const AuditForm = () => {
                 <p className="text-gray-500">
                   Por favor, selecione uma unidade para iniciar a auditoria
                 </p>
-                <Button asChild className="mt-4">
-                  <a href="/units">Selecionar Unidade</a>
+                <Button 
+                  asChild 
+                  className="mt-4"
+                  onClick={returnToUnits} // This won't fire because of asChild, but adding for clarity
+                >
+                  <div onClick={returnToUnits} className="cursor-pointer">
+                    <ArrowLeft className="h-4 w-4 mr-2" /> Selecionar Unidade
+                  </div>
                 </Button>
               </div>
             </CardContent>

@@ -6,13 +6,31 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Search, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter,
+  DialogDescription 
+} from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 const UnitsList = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  const [showNewUnitDialog, setShowNewUnitDialog] = useState(false);
+  const [newUnit, setNewUnit] = useState({
+    name: '',
+    address: '',
+    manager: '',
+  });
   
-  // Mock units data
-  const units = [
+  // Mock units data (now wrapped in state so we can add to it)
+  const [units, setUnits] = useState([
     { 
       id: 1, 
       name: 'Brasal Refrigerantes - Matriz', 
@@ -61,7 +79,7 @@ const UnitsList = () => {
       lastAudit: '05/05/2025',
       lastScore: 4.6
     },
-  ];
+  ]);
 
   const filteredUnits = searchTerm 
     ? units.filter(unit => 
@@ -72,7 +90,37 @@ const UnitsList = () => {
     : units;
 
   const startAudit = (unitId: number) => {
+    // Use navigate instead of direct URL change to prevent full page refresh
     navigate(`/audits/new?unitId=${unitId}`);
+  };
+
+  const handleCreateUnit = () => {
+    if (!newUnit.name || !newUnit.address || !newUnit.manager) {
+      toast({
+        title: "Informações incompletas",
+        description: "Por favor, preencha todos os campos obrigatórios.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newUnitObject = {
+      id: units.length > 0 ? Math.max(...units.map(unit => unit.id)) + 1 : 1,
+      name: newUnit.name,
+      address: newUnit.address,
+      manager: newUnit.manager,
+      lastAudit: '',
+      lastScore: 0
+    };
+
+    setUnits([...units, newUnitObject]);
+    setNewUnit({ name: '', address: '', manager: '' });
+    setShowNewUnitDialog(false);
+    
+    toast({
+      title: "Unidade criada",
+      description: "Nova unidade adicionada com sucesso."
+    });
   };
 
   return (
@@ -80,7 +128,7 @@ const UnitsList = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-800">Unidades</h1>
-          <Button>
+          <Button onClick={() => setShowNewUnitDialog(true)}>
             <Plus className="h-4 w-4 mr-2" /> Nova Unidade
           </Button>
         </div>
@@ -141,6 +189,53 @@ const UnitsList = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal for creating a new unit */}
+      <Dialog open={showNewUnitDialog} onOpenChange={setShowNewUnitDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Nova Unidade</DialogTitle>
+            <DialogDescription>
+              Preencha as informações para adicionar uma nova unidade ao sistema.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome da Unidade</Label>
+              <Input
+                id="name"
+                placeholder="Ex: Brasal Refrigerantes - Filial"
+                value={newUnit.name}
+                onChange={(e) => setNewUnit({...newUnit, name: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address">Endereço</Label>
+              <Textarea
+                id="address"
+                placeholder="Ex: SCIA Quadra 8, Conjunto 12, Lote 5"
+                value={newUnit.address}
+                onChange={(e) => setNewUnit({...newUnit, address: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="manager">Responsável</Label>
+              <Input
+                id="manager"
+                placeholder="Ex: João Silva"
+                value={newUnit.manager}
+                onChange={(e) => setNewUnit({...newUnit, manager: e.target.value})}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewUnitDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateUnit}>Criar Unidade</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };
