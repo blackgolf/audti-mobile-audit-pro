@@ -1,12 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, User } from 'lucide-react';
 import CTAButton from './CTAButton';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,6 +25,14 @@ const Navbar = () => {
   }, []);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+
+  const handleCTAClick = () => {
+    if (user) {
+      navigate('/dashboard');
+    } else {
+      navigate('/login');
+    }
+  };
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
@@ -41,10 +52,13 @@ const Navbar = () => {
             <Link to="/#features" className="text-audti-primary hover:text-audti-secondary font-medium">Funcionalidades</Link>
             <Link to="/support" className="text-audti-primary hover:text-audti-secondary font-medium">Suporte</Link>
             <Link to="/#contact" className="text-audti-primary hover:text-audti-secondary font-medium">Contato</Link>
+            <Link to="/audits" className="text-audti-primary hover:text-audti-secondary font-medium">Ver Auditorias</Link>
           </div>
 
           <div className="hidden md:block">
-            <CTAButton variant="primary">Login</CTAButton>
+            <CTAButton variant="primary" onClick={handleCTAClick}>
+              {user ? 'Painel' : 'Login'}
+            </CTAButton>
           </div>
 
           {/* Mobile Menu Button */}
@@ -87,8 +101,24 @@ const Navbar = () => {
               >
                 Contato
               </Link>
+              <Link 
+                to="/audits" 
+                className="text-audti-primary hover:text-audti-secondary font-medium"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Ver Auditorias
+              </Link>
               <div className="pt-2">
-                <CTAButton variant="primary" className="w-full">Login</CTAButton>
+                <CTAButton 
+                  variant="primary" 
+                  className="w-full" 
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleCTAClick();
+                  }}
+                >
+                  {user ? 'Painel' : 'Login'}
+                </CTAButton>
               </div>
             </div>
           </div>

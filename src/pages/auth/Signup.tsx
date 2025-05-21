@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,23 +9,28 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Eye, EyeOff } from 'lucide-react';
 import { z } from 'zod';
 
-const loginSchema = z.object({
+const signupSchema = z.object({
   email: z.string().email('Formato de email inválido'),
   password: z.string().min(6, 'A senha deve ter no mínimo 6 caracteres'),
+  confirmPassword: z.string().min(1, 'Confirme sua senha'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "As senhas não coincidem",
+  path: ["confirmPassword"],
 });
 
-const Login = () => {
+const Signup = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const { signIn } = useAuth();
-  const navigate = useNavigate();
+  const { signUp } = useAuth();
 
   const validateForm = () => {
     try {
-      loginSchema.parse({ email, password });
+      signupSchema.parse({ email, password, confirmPassword });
       setErrors({});
       return true;
     } catch (error) {
@@ -42,7 +47,7 @@ const Login = () => {
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) return;
@@ -50,7 +55,7 @@ const Login = () => {
     setLoading(true);
     
     try {
-      await signIn(email, password);
+      await signUp(email, password);
     } catch (error) {
       // Error is handled in the context
     } finally {
@@ -58,8 +63,12 @@ const Login = () => {
     }
   };
 
-  const toggleShowPassword = () => {
-    setShowPassword(!showPassword);
+  const toggleShowPassword = (field: 'password' | 'confirmPassword') => {
+    if (field === 'password') {
+      setShowPassword(!showPassword);
+    } else {
+      setShowConfirmPassword(!showConfirmPassword);
+    }
   };
 
   return (
@@ -74,12 +83,12 @@ const Login = () => {
         
         <Card>
           <CardHeader>
-            <CardTitle>Login</CardTitle>
+            <CardTitle>Criar conta</CardTitle>
             <CardDescription>
-              Entre com suas credenciais para acessar a plataforma
+              Cadastre-se para acessar o sistema de auditoria
             </CardDescription>
           </CardHeader>
-          <form onSubmit={handleLogin}>
+          <form onSubmit={handleSignup}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -97,12 +106,7 @@ const Login = () => {
                 )}
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Senha</Label>
-                  <Link to="#" className="text-sm text-audti-secondary hover:underline">
-                    Esqueci minha senha
-                  </Link>
-                </div>
+                <Label htmlFor="password">Senha</Label>
                 <div className="relative">
                   <Input 
                     id="password" 
@@ -115,7 +119,7 @@ const Login = () => {
                   <button 
                     type="button"
                     className="absolute inset-y-0 right-0 flex items-center pr-3"
-                    onClick={toggleShowPassword}
+                    onClick={() => toggleShowPassword('password')}
                   >
                     {showPassword ? (
                       <EyeOff className="h-5 w-5 text-gray-500" />
@@ -128,6 +132,33 @@ const Login = () => {
                   <p className="text-sm text-red-500">{errors.password}</p>
                 )}
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                <div className="relative">
+                  <Input 
+                    id="confirmPassword" 
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    className={errors.confirmPassword ? "border-red-500 pr-10" : "pr-10"}
+                  />
+                  <button 
+                    type="button"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3"
+                    onClick={() => toggleShowPassword('confirmPassword')}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-5 w-5 text-gray-500" />
+                    ) : (
+                      <Eye className="h-5 w-5 text-gray-500" />
+                    )}
+                  </button>
+                </div>
+                {errors.confirmPassword && (
+                  <p className="text-sm text-red-500">{errors.confirmPassword}</p>
+                )}
+              </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
               <Button 
@@ -135,12 +166,12 @@ const Login = () => {
                 className="w-full bg-audti-primary hover:bg-audti-accent"
                 disabled={loading}
               >
-                {loading ? 'Entrando...' : 'Entrar'}
+                {loading ? 'Cadastrando...' : 'Cadastrar'}
               </Button>
               <div className="text-center text-sm">
-                Não tem uma conta?{" "}
-                <Link to="/signup" className="text-audti-secondary hover:underline">
-                  Cadastre-se
+                Já tem uma conta?{" "}
+                <Link to="/login" className="text-audti-secondary hover:underline">
+                  Faça login
                 </Link>
               </div>
             </CardFooter>
@@ -151,4 +182,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Signup;
