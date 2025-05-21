@@ -19,8 +19,9 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const { user, loading: authLoading } = useAuth();
 
-  const isAdmin = usuario?.papel === "administrador" && usuario?.ativo;
-  const isAuditor = usuario?.papel === "auditor" && usuario?.ativo;
+  // Check for administrator role and active status
+  const isAdmin = usuario?.papel === "administrador" && usuario?.ativo === true;
+  const isAuditor = usuario?.papel === "auditor" && usuario?.ativo === true;
   const isActive = usuario?.ativo || false;
 
   const fetchUsuario = async () => {

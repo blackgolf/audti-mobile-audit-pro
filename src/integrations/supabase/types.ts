@@ -62,6 +62,7 @@ export type Database = {
           id: string
           obrigatoria: boolean | null
           ordem: number | null
+          peso: number
           updated_at: string | null
         }
         Insert: {
@@ -71,6 +72,7 @@ export type Database = {
           id?: string
           obrigatoria?: boolean | null
           ordem?: number | null
+          peso?: number
           updated_at?: string | null
         }
         Update: {
@@ -80,6 +82,7 @@ export type Database = {
           id?: string
           obrigatoria?: boolean | null
           ordem?: number | null
+          peso?: number
           updated_at?: string | null
         }
         Relationships: []
