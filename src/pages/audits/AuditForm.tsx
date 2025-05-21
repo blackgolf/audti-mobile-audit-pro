@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/layouts/AppLayout';
@@ -502,7 +503,7 @@ const AuditForm = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Nenhum (só critérios customizados)</SelectItem>
+                          <SelectItem key="no-checklist" value="no-checklist">Nenhum (só critérios customizados)</SelectItem>
                           {checklistOptions.map((option) => (
                             <SelectItem key={option.id} value={option.id}>
                               {option.name}
