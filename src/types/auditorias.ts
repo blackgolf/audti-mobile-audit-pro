@@ -4,6 +4,7 @@ export interface Criterio {
   descricao: string;
   nota: number;
   justificativa: string;
+  checklist_id?: string; // ID do item do checklist associado
 }
 
 export interface Auditoria {

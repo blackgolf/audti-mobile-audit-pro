@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import AppLayout from '@/components/layouts/AppLayout';
 import { useQuery } from '@tanstack/react-query';
@@ -15,10 +15,13 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
+import { RespostaAuditoria } from '@/services/respostaAuditoriaService';
+import { Criterio } from '@/types/auditorias';
 
 const AuditReport = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [allCriterios, setAllCriterios] = useState<Criterio[]>([]);
   
   // Query for fetching a single auditoria
   const { data: auditoria, isLoading, error } = useQuery({
@@ -26,6 +29,13 @@ const AuditReport = () => {
     queryFn: () => auditoriaService.getById(id || ''),
     enabled: !!id,
   });
+
+  // Combine stored criterios with any checklist responses
+  useEffect(() => {
+    if (auditoria?.criterios) {
+      setAllCriterios(auditoria.criterios);
+    }
+  }, [auditoria]);
 
   // Função para formatar a data
   const formatarData = (dataString?: string) => {
@@ -40,15 +50,15 @@ const AuditReport = () => {
 
   // Função para calcular a média das notas
   const calcularMediaNotas = () => {
-    if (!auditoria?.criterios || auditoria.criterios.length === 0) {
+    if (!allCriterios || allCriterios.length === 0) {
       return 'N/A';
     }
     
-    const somaNotas = auditoria.criterios.reduce((acc, criterio) => 
+    const somaNotas = allCriterios.reduce((acc, criterio) => 
       acc + (criterio.nota || 0), 0
     );
     
-    return (somaNotas / auditoria.criterios.length).toFixed(1);
+    return (somaNotas / allCriterios.length).toFixed(1);
   };
 
   // Função para imprimir o relatório
@@ -158,8 +168,8 @@ const AuditReport = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {auditoria.criterios.map((criterio, index) => (
-                  <TableRow key={index}>
+                {allCriterios.map((criterio, index) => (
+                  <TableRow key={index} className={criterio.checklist_id ? "bg-audti-primary/5" : ""}>
                     <TableCell className="font-medium">{criterio.descricao}</TableCell>
                     <TableCell>
                       <div className="flex items-center">
@@ -197,18 +207,18 @@ const AuditReport = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                 <div className="p-4 border rounded-md text-center">
                   <p className="text-sm text-gray-500">Total de Critérios</p>
-                  <p className="text-xl font-bold">{auditoria.criterios.length}</p>
+                  <p className="text-xl font-bold">{allCriterios.length}</p>
                 </div>
                 <div className="p-4 border rounded-md text-center">
                   <p className="text-sm text-gray-500">Critérios Satisfatórios</p>
                   <p className="text-xl font-bold">
-                    {auditoria.criterios.filter(c => c.nota >= 3).length}
+                    {allCriterios.filter(c => c.nota >= 3).length}
                   </p>
                 </div>
                 <div className="p-4 border rounded-md text-center">
                   <p className="text-sm text-gray-500">Critérios Críticos</p>
                   <p className="text-xl font-bold">
-                    {auditoria.criterios.filter(c => c.nota <= 2).length}
+                    {allCriterios.filter(c => c.nota <= 2).length}
                   </p>
                 </div>
                 <div className="p-4 border rounded-md text-center">

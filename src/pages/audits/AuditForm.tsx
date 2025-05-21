@@ -32,6 +32,9 @@ import { useAuditorias } from '@/hooks/useAuditorias';
 import { useChecklists } from '@/hooks/useChecklists';
 import { Auditoria, Criterio } from '@/types/auditorias';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ChecklistItem } from '@/services/checklistService';
+import { useRespostasAuditoria } from '@/hooks/useRespostasAuditoria';
+import { RespostaAuditoria } from '@/services/respostaAuditoriaService';
 
 // Lista de unidades para seleção
 const unidades = [
@@ -66,6 +69,7 @@ interface FormData {
     descricao: string;
     nota: number;
     justificativa: string;
+    checklist_id?: string; // ID opcional do checklist associado
   }[];
   unidadeNome: string;
 }
@@ -78,6 +82,8 @@ const AuditForm = () => {
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [loadedCriterios, setLoadedCriterios] = useState<Criterio[]>([]);
   const [customCriterios, setCustomCriterios] = useState<Criterio[]>([]);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
+  const [respostas, setRespostas] = useState<Record<string, RespostaAuditoria>>({});
   
   const { 
     getAuditoria,
@@ -88,8 +94,17 @@ const AuditForm = () => {
   
   const { getChecklistsByAreas, convertToFormCriterios } = useChecklists();
 
+  const { 
+    getRespostas, 
+    createManyRespostas, 
+    isLoading: isLoadingRespostas 
+  } = useRespostasAuditoria(id);
+
   // Buscar critérios baseados nas áreas selecionadas
-  const { data: checklist = [], isLoading: isLoadingChecklist } = getChecklistsByAreas(selectedAreas);
+  const { data: checklistItems = [], isLoading: isLoadingChecklist } = getChecklistsByAreas(selectedAreas);
+
+  // Buscar respostas existentes para a auditoria (em caso de edição)
+  const { data: respostasData = [], isLoading: isLoadingRespostasData } = getRespostas();
 
   // Carregar auditoria existente se estiver editando
   const { data: auditoria, isLoading } = getAuditoria(id || '');
@@ -107,6 +122,26 @@ const AuditForm = () => {
     }
   });
 
+  // Atualizar checklist quando o checklistItems mudar
+  useEffect(() => {
+    if (checklistItems && checklistItems.length > 0) {
+      setChecklist(checklistItems);
+    }
+  }, [checklistItems]);
+
+  // Processar respostas quando carregadas
+  useEffect(() => {
+    if (respostasData && respostasData.length > 0) {
+      const respostasMap: Record<string, RespostaAuditoria> = {};
+      
+      respostasData.forEach(resposta => {
+        respostasMap[resposta.checklist_id] = resposta;
+      });
+      
+      setRespostas(respostasMap);
+    }
+  }, [respostasData]);
+
   // Preencher o formulário quando a auditoria for carregada (para edição)
   useEffect(() => {
     if (auditoria && id) {
@@ -123,7 +158,11 @@ const AuditForm = () => {
       
       // Separar critérios carregados do checklist e critérios customizados
       if (auditoria.criterios && auditoria.criterios.length > 0) {
-        setCustomCriterios(auditoria.criterios);
+        const checklistCriterios = auditoria.criterios.filter(c => c.checklist_id);
+        const customCrits = auditoria.criterios.filter(c => !c.checklist_id);
+        
+        setLoadedCriterios(checklistCriterios);
+        setCustomCriterios(customCrits);
       }
     }
   }, [auditoria, form, id]);
@@ -131,30 +170,46 @@ const AuditForm = () => {
   // Atualizar critérios quando as áreas selecionadas ou o checklist mudarem
   useEffect(() => {
     if (checklist && checklist.length > 0) {
-      const newCriterios = convertToFormCriterios(checklist);
-      
-      // Manter as notas e justificativas de critérios já existentes
-      const updatedCriterios = newCriterios.map(criterio => {
+      const newCriterios: Criterio[] = checklist.map(item => {
+        // Verificar se já existe resposta para este item do checklist
+        const resposta = respostas[item.id];
+        
+        // Se existir resposta, usar os valores dela
+        if (resposta) {
+          return {
+            descricao: item.descricao,
+            nota: resposta.nota || 0,
+            justificativa: resposta.justificativa || '',
+            checklist_id: item.id
+          };
+        }
+        
+        // Verificar se já existe critério para este item do checklist no formulário
         const existingCriterio = form.getValues('criterios').find(
-          c => c.descricao === criterio.descricao
+          c => c.checklist_id === item.id
         );
         
         if (existingCriterio) {
           return {
-            ...criterio,
-            nota: existingCriterio.nota,
-            justificativa: existingCriterio.justificativa
+            ...existingCriterio,
+            checklist_id: item.id
           };
         }
         
-        return criterio;
+        // Se não existir, criar um novo critério
+        return {
+          descricao: item.descricao,
+          nota: 0,
+          justificativa: '',
+          checklist_id: item.id
+        };
       });
       
-      setLoadedCriterios(updatedCriterios);
+      setLoadedCriterios(newCriterios);
       
       // Combinar critérios do checklist com critérios customizados
-      const allCriterios = [...updatedCriterios, ...customCriterios.filter(
-        c => !updatedCriterios.some(uc => uc.descricao === c.descricao)
+      const allCriterios = [...newCriterios, ...customCriterios.filter(
+        c => !newCriterios.some(nc => nc.checklist_id && nc.checklist_id === c.checklist_id)
       )];
       
       form.setValue('criterios', allCriterios);
@@ -165,7 +220,7 @@ const AuditForm = () => {
         setLoadedCriterios([]);
       }
     }
-  }, [checklist, selectedAreas, form]);
+  }, [checklist, respostas, form, id]);
 
   // Adicionar novo critério customizado
   const addCriterio = () => {
@@ -182,13 +237,13 @@ const AuditForm = () => {
     const criterioToRemove = currentCriterios[index];
     
     // Verificar se é um critério carregado do checklist ou customizado
-    if (loadedCriterios.some(c => c.descricao === criterioToRemove.descricao)) {
+    if (criterioToRemove.checklist_id) {
       // Não podemos remover critérios carregados do checklist
       toast.error("Não é possível remover critérios carregados automaticamente. Desmarque a área para removê-los.");
       return;
     }
     
-    const newCustomCriterios = customCriterios.filter(c => c.descricao !== criterioToRemove.descricao);
+    const newCustomCriterios = customCriterios.filter((_, i) => i !== customCriterios.indexOf(criterioToRemove));
     setCustomCriterios(newCustomCriterios);
     
     form.setValue('criterios', currentCriterios.filter((_, i) => i !== index));
@@ -217,6 +272,26 @@ const AuditForm = () => {
     }
   };
 
+  // Salvar respostas de checklist
+  const saveChecklistResponses = async (auditoriaId: string, criterios: FormData['criterios']) => {
+    // Filtrar apenas critérios que têm checklist_id (são do checklist)
+    const checklistCriterios = criterios.filter(c => c.checklist_id);
+    
+    if (checklistCriterios.length === 0) return;
+    
+    // Converter critérios para o formato de respostas
+    const responsasToSave: RespostaAuditoria[] = checklistCriterios.map(criterio => ({
+      auditoria_id: auditoriaId,
+      checklist_id: criterio.checklist_id as string,
+      resposta: criterio.nota.toString(),
+      nota: criterio.nota,
+      justificativa: criterio.justificativa
+    }));
+    
+    // Salvar todas as respostas de uma vez
+    await createManyRespostas.mutateAsync(responsasToSave);
+  };
+
   // Salvar rascunho (versão simplificada)
   const saveDraft = async () => {
     const data = form.getValues();
@@ -224,7 +299,7 @@ const AuditForm = () => {
     
     try {
       if (id) {
-        await updateAuditoria.mutateAsync({ 
+        const updatedAuditoria = await updateAuditoria.mutateAsync({ 
           id, 
           updates: {
             titulo: data.titulo,
@@ -235,8 +310,15 @@ const AuditForm = () => {
             criterios: data.criterios
           }
         });
+        
+        // Salvar respostas do checklist
+        if (updatedAuditoria) {
+          await saveChecklistResponses(updatedAuditoria.id as string, data.criterios);
+        }
+        
+        toast.success("Rascunho salvo com sucesso");
       } else {
-        await createAuditoria.mutateAsync({
+        const newAuditoria = await createAuditoria.mutateAsync({
           titulo: data.titulo,
           descricao: data.descricao,
           data: data.data,
@@ -244,8 +326,14 @@ const AuditForm = () => {
           areas: data.areas,
           criterios: data.criterios
         });
+        
+        // Salvar respostas do checklist
+        if (newAuditoria) {
+          await saveChecklistResponses(newAuditoria.id as string, data.criterios);
+        }
+        
+        toast.success("Rascunho salvo com sucesso");
       }
-      toast.success("Rascunho salvo com sucesso");
     } catch (error) {
       toast.error("Erro ao salvar rascunho");
       console.error(error);
@@ -259,7 +347,7 @@ const AuditForm = () => {
     
     try {
       if (id) {
-        await updateAuditoria.mutateAsync({ 
+        const updatedAuditoria = await updateAuditoria.mutateAsync({ 
           id, 
           updates: {
             titulo: data.titulo,
@@ -270,9 +358,15 @@ const AuditForm = () => {
             criterios: data.criterios
           }
         });
+        
+        // Salvar respostas do checklist
+        if (updatedAuditoria) {
+          await saveChecklistResponses(updatedAuditoria.id as string, data.criterios);
+        }
+        
         toast.success("Auditoria atualizada com sucesso");
       } else {
-        const result = await createAuditoria.mutateAsync({
+        const newAuditoria = await createAuditoria.mutateAsync({
           titulo: data.titulo,
           descricao: data.descricao,
           data: data.data,
@@ -280,6 +374,12 @@ const AuditForm = () => {
           areas: data.areas,
           criterios: data.criterios
         });
+        
+        // Salvar respostas do checklist
+        if (newAuditoria) {
+          await saveChecklistResponses(newAuditoria.id as string, data.criterios);
+        }
+        
         toast.success("Auditoria criada com sucesso");
       }
       navigate('/audits');
@@ -305,8 +405,8 @@ const AuditForm = () => {
   };
 
   // Verifica se um critério é carregado automaticamente ou customizado
-  const isCriterioFromChecklist = (descricao: string) => {
-    return loadedCriterios.some(c => c.descricao === descricao);
+  const isCriterioFromChecklist = (criterio: Criterio) => {
+    return !!criterio.checklist_id;
   };
 
   if (isLoading) {
@@ -493,7 +593,7 @@ const AuditForm = () => {
                 </CardHeader>
                 <CollapsibleContent>
                   <CardContent className="space-y-6">
-                    {isLoadingChecklist && (
+                    {(isLoadingChecklist || isLoadingRespostasData) && (
                       <div className="flex justify-center py-4">
                         <p>Carregando critérios...</p>
                       </div>
@@ -503,20 +603,20 @@ const AuditForm = () => {
                       <div 
                         key={index} 
                         className={`p-4 border rounded-md space-y-4 ${
-                          isCriterioFromChecklist(criterio.descricao)
+                          isCriterioFromChecklist(criterio)
                             ? 'border-audti-primary/30 bg-audti-primary/5'
                             : 'border-gray-200'
                         }`}
                       >
                         <div className="flex justify-between">
-                          <h4 className="text-md font-medium">Critério {index + 1} {isCriterioFromChecklist(criterio.descricao) ? '(Automático)' : '(Customizado)'}</h4>
+                          <h4 className="text-md font-medium">Critério {index + 1} {isCriterioFromChecklist(criterio) ? '(Automático)' : '(Customizado)'}</h4>
                           <Button 
                             type="button" 
                             variant="ghost" 
                             size="sm"
                             onClick={() => removeCriterio(index)}
                             className="text-red-500 hover:text-red-700"
-                            disabled={isCriterioFromChecklist(criterio.descricao)}
+                            disabled={isCriterioFromChecklist(criterio)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -532,10 +632,10 @@ const AuditForm = () => {
                               form.setValue('criterios', newCriterios);
                               
                               // Se for critério customizado, atualizar o estado
-                              if (!isCriterioFromChecklist(criterio.descricao)) {
+                              if (!isCriterioFromChecklist(criterio)) {
                                 const newCustomCriterios = [...customCriterios];
-                                const customIndex = newCustomCriterios.findIndex(c => 
-                                  c.descricao === criterio.descricao
+                                const customIndex = customCriterios.findIndex(c => 
+                                  c === criterio || c.descricao === criterio.descricao
                                 );
                                 if (customIndex !== -1) {
                                   newCustomCriterios[customIndex].descricao = e.target.value;
@@ -544,8 +644,8 @@ const AuditForm = () => {
                               }
                             }}
                             placeholder="Descreva o critério de avaliação"
-                            readOnly={isCriterioFromChecklist(criterio.descricao)}
-                            className={isCriterioFromChecklist(criterio.descricao) ? "bg-gray-50" : ""}
+                            readOnly={isCriterioFromChecklist(criterio)}
+                            className={isCriterioFromChecklist(criterio) ? "bg-gray-50" : ""}
                           />
                         </div>
                         
@@ -564,10 +664,10 @@ const AuditForm = () => {
                                   form.setValue('criterios', newCriterios);
                                   
                                   // Atualizar também no estado apropriado (loadedCriterios ou customCriterios)
-                                  if (isCriterioFromChecklist(criterio.descricao)) {
+                                  if (isCriterioFromChecklist(criterio)) {
                                     const newLoadedCriterios = [...loadedCriterios];
                                     const loadedIndex = newLoadedCriterios.findIndex(c => 
-                                      c.descricao === criterio.descricao
+                                      c === criterio || (c.checklist_id && c.checklist_id === criterio.checklist_id)
                                     );
                                     if (loadedIndex !== -1) {
                                       newLoadedCriterios[loadedIndex].nota = score;
@@ -575,8 +675,8 @@ const AuditForm = () => {
                                     }
                                   } else {
                                     const newCustomCriterios = [...customCriterios];
-                                    const customIndex = newCustomCriterios.findIndex(c => 
-                                      c.descricao === criterio.descricao
+                                    const customIndex = customCriterios.findIndex(c => 
+                                      c === criterio || c.descricao === criterio.descricao
                                     );
                                     if (customIndex !== -1) {
                                       newCustomCriterios[customIndex].nota = score;
@@ -604,10 +704,10 @@ const AuditForm = () => {
                               form.setValue('criterios', newCriterios);
                               
                               // Atualizar também no estado apropriado
-                              if (isCriterioFromChecklist(criterio.descricao)) {
+                              if (isCriterioFromChecklist(criterio)) {
                                 const newLoadedCriterios = [...loadedCriterios];
                                 const loadedIndex = newLoadedCriterios.findIndex(c => 
-                                  c.descricao === criterio.descricao
+                                  c === criterio || (c.checklist_id && c.checklist_id === criterio.checklist_id)
                                 );
                                 if (loadedIndex !== -1) {
                                   newLoadedCriterios[loadedIndex].justificativa = e.target.value;
@@ -615,8 +715,8 @@ const AuditForm = () => {
                                 }
                               } else {
                                 const newCustomCriterios = [...customCriterios];
-                                const customIndex = newCustomCriterios.findIndex(c => 
-                                  c.descricao === criterio.descricao
+                                const customIndex = customCriterios.findIndex(c => 
+                                  c === criterio || c.descricao === criterio.descricao
                                 );
                                 if (customIndex !== -1) {
                                   newCustomCriterios[customIndex].justificativa = e.target.value;

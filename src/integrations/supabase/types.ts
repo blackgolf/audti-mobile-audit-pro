@@ -111,6 +111,63 @@ export type Database = {
         }
         Relationships: []
       }
+      respostas_auditoria: {
+        Row: {
+          auditoria_id: string
+          checklist_id: string
+          created_at: string | null
+          id: string
+          justificativa: string | null
+          nota: number | null
+          respondido_em: string | null
+          respondido_por: string | null
+          respondido_por_email: string | null
+          resposta: string
+          updated_at: string | null
+        }
+        Insert: {
+          auditoria_id: string
+          checklist_id: string
+          created_at?: string | null
+          id?: string
+          justificativa?: string | null
+          nota?: number | null
+          respondido_em?: string | null
+          respondido_por?: string | null
+          respondido_por_email?: string | null
+          resposta: string
+          updated_at?: string | null
+        }
+        Update: {
+          auditoria_id?: string
+          checklist_id?: string
+          created_at?: string | null
+          id?: string
+          justificativa?: string | null
+          nota?: number | null
+          respondido_em?: string | null
+          respondido_por?: string | null
+          respondido_por_email?: string | null
+          resposta?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "respostas_auditoria_auditoria_id_fkey"
+            columns: ["auditoria_id"]
+            isOneToOne: false
+            referencedRelation: "auditorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "respostas_auditoria_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "checklists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usuarios: {
         Row: {
           ativo: boolean | null
