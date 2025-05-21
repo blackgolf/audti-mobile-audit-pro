@@ -1,22 +1,86 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, Trash2 } from 'lucide-react';
+import { useAuditorias } from '@/hooks/useAuditorias';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const AuditsList = () => {
-  // Mock audits data
-  const audits = [
-    { id: 1, unit: 'Brasal Refrigerantes - Matriz', date: '15/05/2025', score: 4.8, status: 'Concluída', technician: 'Carlos Silva' },
-    { id: 2, unit: 'Brasal Combustíveis - Asa Norte', date: '14/05/2025', score: 3.9, status: 'Concluída', technician: 'Ana Santos' },
-    { id: 3, unit: 'Brasal Veículos - Taguatinga', date: '12/05/2025', score: 4.5, status: 'Concluída', technician: 'Roberto Alves' },
-    { id: 4, unit: 'Brasal Incorporações - Sede', date: '10/05/2025', score: 3.2, status: 'Concluída', technician: 'Mariana Costa' },
-    { id: 5, unit: 'Brasal Refrigerantes - Gama', date: '08/05/2025', score: 4.0, status: 'Concluída', technician: 'Carlos Silva' },
-    { id: 6, unit: 'Brasal Combustíveis - Sudoeste', date: '05/05/2025', score: 4.6, status: 'Concluída', technician: 'Ana Santos' },
-  ];
+  const { auditorias, deleteAuditoria, refetchAuditorias, isLoading } = useAuditorias();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredAuditorias, setFilteredAuditorias] = useState(auditorias);
+
+  // Atualizar a lista filtrada quando as auditorias mudarem ou o termo de busca mudar
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredAuditorias(auditorias);
+    } else {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      const filtered = auditorias.filter(auditoria => 
+        auditoria.titulo.toLowerCase().includes(lowerSearchTerm) ||
+        auditoria.auditor.toLowerCase().includes(lowerSearchTerm)
+      );
+      setFilteredAuditorias(filtered);
+    }
+  }, [auditorias, searchTerm]);
+
+  // Função para calcular a média das notas de uma auditoria
+  const calcularMediaNotas = (auditoria) => {
+    if (!auditoria.criterios || auditoria.criterios.length === 0) {
+      return 'N/A';
+    }
+    
+    const somaNotas = auditoria.criterios.reduce((acc, criterio) => 
+      acc + (criterio.nota || 0), 0
+    );
+    
+    return (somaNotas / auditoria.criterios.length).toFixed(1);
+  };
+
+  // Função para formatar a data
+  const formatarData = (dataString) => {
+    try {
+      const data = new Date(dataString);
+      return data.toLocaleDateString('pt-BR');
+    } catch (error) {
+      return dataString;
+    }
+  };
+
+  // Função para lidar com a exclusão de uma auditoria
+  const handleDelete = async (id) => {
+    try {
+      await deleteAuditoria.mutateAsync(id);
+      toast.success("Auditoria excluída com sucesso");
+      refetchAuditorias();
+    } catch (error) {
+      toast.error("Erro ao excluir auditoria");
+      console.error(error);
+    }
+  };
 
   return (
     <AppLayout>
@@ -39,69 +103,100 @@ const AuditsList = () => {
                 <Input
                   placeholder="Buscar auditorias..."
                   className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Button variant="outline">Filtrar</Button>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Unidade
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Data
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Técnico
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Nota
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {audits.map((audit) => (
-                    <tr key={audit.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {audit.unit}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {audit.date}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {audit.technician}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                          {audit.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {audit.score} / 5
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Link to={`/reports/${audit.id}`} className="text-audti-secondary hover:text-audti-primary">
-                          Relatório
-                        </Link>
-                        <span className="mx-2 text-gray-300">|</span>
-                        <Link to={`/audits/${audit.id}`} className="text-audti-secondary hover:text-audti-primary">
-                          Editar
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {isLoading ? (
+              <div className="text-center py-10">
+                <p>Carregando auditorias...</p>
+              </div>
+            ) : filteredAuditorias.length === 0 ? (
+              <div className="text-center py-10">
+                <p>Nenhuma auditoria encontrada.</p>
+                <Button asChild className="mt-4">
+                  <Link to="/audits/new">Criar Nova Auditoria</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Título</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Auditor</TableHead>
+                      <TableHead>Áreas</TableHead>
+                      <TableHead>Nota</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAuditorias.map((auditoria) => (
+                      <TableRow key={auditoria.id} className="hover:bg-gray-50">
+                        <TableCell className="font-medium">{auditoria.titulo}</TableCell>
+                        <TableCell>{formatarData(auditoria.data)}</TableCell>
+                        <TableCell>{auditoria.auditor}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {auditoria.areas.slice(0, 2).map((area, index) => (
+                              <span key={index} className="px-2 py-1 text-xs rounded-full bg-gray-100">
+                                {area}
+                              </span>
+                            ))}
+                            {auditoria.areas.length > 2 && (
+                              <span className="px-2 py-1 text-xs rounded-full bg-gray-100">
+                                +{auditoria.areas.length - 2}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {calcularMediaNotas(auditoria)} <span className="text-xs text-gray-500">/ 5</span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-2">
+                            <Button variant="outline" size="sm" asChild>
+                              <Link to={`/reports/${auditoria.id}`}>
+                                Relatório
+                              </Link>
+                            </Button>
+                            <Button variant="outline" size="sm" asChild>
+                              <Link to={`/audits/${auditoria.id}`}>
+                                Editar
+                              </Link>
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm" className="text-red-500 hover:text-red-700">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir Auditoria</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja excluir esta auditoria? Esta ação não pode ser desfeita.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(auditoria.id)} className="bg-red-500 hover:bg-red-600">
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

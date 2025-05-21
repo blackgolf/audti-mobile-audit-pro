@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,11 +9,13 @@ import {
   FormControl, 
   FormField, 
   FormItem, 
-  FormLabel 
+  FormLabel,
+  FormMessage
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
 import { 
   ChevronDown, 
   ChevronUp, 
@@ -20,267 +23,234 @@ import {
   Camera, 
   Save, 
   FileCheck,
-  ArrowLeft 
+  ArrowLeft,
+  Trash2
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useAuditorias } from '@/hooks/useAuditorias';
+import { Auditoria } from '@/types/auditorias';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-// Mock data for checklist items
-const mockCategories = [
-  {
-    id: 1,
-    name: 'Infraestrutura',
-    items: [
-      { id: 101, question: 'Os switches estão devidamente instalados e documentados?', weight: 5 },
-      { id: 102, question: 'O cabeamento de rede está organizado e identificado?', weight: 4 },
-      { id: 103, question: 'O rack está limpo e bem organizado?', weight: 3 },
-      { id: 104, question: 'O sistema de refrigeração está funcionando adequadamente?', weight: 5 },
-    ]
-  },
-  {
-    id: 2,
-    name: 'Segurança',
-    items: [
-      { id: 201, question: 'Os servidores possuem antivírus atualizado?', weight: 5 },
-      { id: 202, question: 'O firewall está configurado corretamente?', weight: 5 },
-      { id: 203, question: 'As políticas de backup estão sendo seguidas?', weight: 4 },
-      { id: 204, question: 'O controle de acesso à sala de servidores é adequado?', weight: 3 },
-    ]
-  },
-  {
-    id: 3,
-    name: 'Sistemas',
-    items: [
-      { id: 301, question: 'Os sistemas operacionais estão atualizados?', weight: 4 },
-      { id: 302, question: 'Os softwares estão licenciados corretamente?', weight: 5 },
-      { id: 303, question: 'As estações de trabalho possuem as configurações padrão?', weight: 3 },
-      { id: 304, question: 'O ERP está funcionando sem erros recorrentes?', weight: 4 },
-    ]
-  }
+// Lista de unidades para seleção
+const unidades = [
+  { id: 1, nome: 'Brasal Refrigerantes - Matriz' },
+  { id: 2, nome: 'Brasal Combustíveis - Asa Norte' },
+  { id: 3, nome: 'Brasal Veículos - Taguatinga' },
+  { id: 4, nome: 'Brasal Incorporações - Sede' },
+  { id: 5, nome: 'Brasal Refrigerantes - Gama' },
+  { id: 6, nome: 'Brasal Combustíveis - Sudoeste' },
 ];
 
-// Mock data for units
-const mockUnits = [
-  { id: 1, name: 'Brasal Refrigerantes - Matriz' },
-  { id: 2, name: 'Brasal Combustíveis - Asa Norte' },
-  { id: 3, name: 'Brasal Veículos - Taguatinga' },
-  { id: 4, name: 'Brasal Incorporações - Sede' },
-  { id: 5, name: 'Brasal Refrigerantes - Gama' },
-  { id: 6, name: 'Brasal Combustíveis - Sudoeste' },
+// Lista de áreas para seleção
+const areas = [
+  'Infraestrutura',
+  'Segurança',
+  'Sistemas',
+  'Redes',
+  'Banco de Dados',
+  'Aplicações',
+  'Desenvolvimento',
+  'Suporte',
 ];
 
-// Type for checklist form answers
-interface ChecklistAnswer {
-  itemId: number;
-  question: string;
-  score: number;
-  observation: string;
-  actionPlan: string;
-  photos: string[];
-  weight: number;
-}
-
-interface AuditFormData {
-  unitId: number;
-  unitName: string;
-  date: string;
-  technician: string;
-  answers: Record<number, ChecklistAnswer>;
+// Estrutura para o formulário de auditoria
+interface FormData {
+  titulo: string;
+  descricao: string;
+  data: string;
+  auditor: string;
+  areas: string[];
+  criterios: {
+    descricao: string;
+    nota: number;
+    justificativa: string;
+  }[];
+  unidadeNome: string;
 }
 
 const AuditForm = () => {
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [openCategories, setOpenCategories] = useState<Record<number, boolean>>({});
-  const [selectedUnit, setSelectedUnit] = useState<{id: number, name: string} | null>(null);
+  const [openCategories, setOpenCategories] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   
-  // Initialize form
-  const form = useForm<AuditFormData>({
+  const { 
+    getAuditoria,
+    createAuditoria,
+    updateAuditoria,
+    isLoading: isLoadingAuditorias 
+  } = useAuditorias();
+
+  // Carregar auditoria existente se estiver editando
+  const { data: auditoria, isLoading } = getAuditoria(id || '');
+  
+  // Inicializar formulário
+  const form = useForm<FormData>({
     defaultValues: {
-      unitId: 0,
-      unitName: '',
-      date: new Date().toISOString().split('T')[0],
-      technician: 'Carlos Silva', // Normally this would come from auth context
-      answers: {}
+      titulo: '',
+      descricao: '',
+      data: new Date().toISOString().split('T')[0],
+      auditor: '',
+      areas: [],
+      criterios: [{ descricao: '', nota: 0, justificativa: '' }],
+      unidadeNome: ''
     }
   });
 
-  // Initialize answers state from checklist items
+  // Preencher o formulário quando a auditoria for carregada (para edição)
   useEffect(() => {
-    const initialAnswers: Record<number, ChecklistAnswer> = {};
-    mockCategories.forEach(category => {
-      category.items.forEach(item => {
-        initialAnswers[item.id] = {
-          itemId: item.id,
-          question: item.question,
-          score: 0,
-          observation: '',
-          actionPlan: '',
-          photos: [],
-          weight: item.weight
-        };
+    if (auditoria && id) {
+      form.reset({
+        titulo: auditoria.titulo,
+        descricao: auditoria.descricao || '',
+        data: auditoria.data,
+        auditor: auditoria.auditor,
+        areas: auditoria.areas,
+        criterios: auditoria.criterios,
+        unidadeNome: 'Unidade' // Este campo não é armazenado no banco de dados
       });
-    });
-    form.setValue('answers', initialAnswers);
-    
-    // Set all categories open initially
-    const categoriesState: Record<number, boolean> = {};
-    mockCategories.forEach(cat => {
-      categoriesState[cat.id] = true;
-    });
-    setOpenCategories(categoriesState);
-  }, [form]);
-
-  // Handle unit selection from URL parameter
-  useEffect(() => {
-    const unitIdParam = searchParams.get('unitId');
-    
-    if (unitIdParam) {
-      const unitId = parseInt(unitIdParam);
-      const unit = mockUnits.find(u => u.id === unitId);
-      
-      if (unit) {
-        setSelectedUnit(unit);
-        form.setValue('unitId', unit.id);
-        form.setValue('unitName', unit.name);
-      } else {
-        // Handle case where unit is not found
-        toast({
-          title: "Unidade não encontrada",
-          description: "A unidade selecionada não foi encontrada.",
-          variant: "destructive",
-        });
-        navigate('/units');
-      }
+      setSelectedAreas(auditoria.areas);
     }
-  }, [searchParams, form, navigate, toast]);
+  }, [auditoria, form, id]);
 
-  // Calculate the progress percentage
-  const calculateProgress = () => {
-    const answers = form.getValues('answers');
-    if (!answers) return 0;
-    
-    const items = Object.values(answers);
-    const answeredItems = items.filter(item => item.score > 0);
-    return Math.round((answeredItems.length / items.length) * 100);
+  // Adicionar novo critério
+  const addCriterio = () => {
+    const currentCriterios = form.getValues('criterios');
+    form.setValue('criterios', [
+      ...currentCriterios,
+      { descricao: '', nota: 0, justificativa: '' }
+    ]);
   };
 
-  // Calculate the weighted average score
-  const calculateScore = () => {
-    const answers = form.getValues('answers');
-    if (!answers) return 0;
-
-    const items = Object.values(answers);
-    const scoredItems = items.filter(item => item.score > 0);
-    
-    if (scoredItems.length === 0) return 0;
-    
-    const totalWeightedScore = scoredItems.reduce((acc, item) => 
-      acc + (item.score * item.weight), 0);
-    const totalWeight = scoredItems.reduce((acc, item) => acc + item.weight, 0);
-    
-    return totalWeight > 0 ? (totalWeightedScore / totalWeight).toFixed(1) : 0;
+  // Remover critério
+  const removeCriterio = (index: number) => {
+    const currentCriterios = form.getValues('criterios');
+    if (currentCriterios.length > 1) {
+      form.setValue('criterios', currentCriterios.filter((_, i) => i !== index));
+    }
   };
 
-  // Toggle category open/closed state
-  const toggleCategory = (categoryId: number) => {
-    setOpenCategories(prev => ({
-      ...prev,
-      [categoryId]: !prev[categoryId]
-    }));
+  // Toggle categoria aberta/fechada
+  const toggleCategories = () => {
+    setOpenCategories(prev => !prev);
   };
 
-  // Save draft
-  const saveDraft = () => {
-    toast({
-      title: "Rascunho salvo",
-      description: "Os dados da auditoria foram salvos como rascunho."
+  // Adicionar/remover área
+  const toggleArea = (area: string) => {
+    setSelectedAreas(prev => {
+      if (prev.includes(area)) {
+        return prev.filter(a => a !== area);
+      } else {
+        return [...prev, area];
+      }
     });
+    
+    const currentAreas = form.getValues('areas');
+    if (currentAreas.includes(area)) {
+      form.setValue('areas', currentAreas.filter(a => a !== area));
+    } else {
+      form.setValue('areas', [...currentAreas, area]);
+    }
   };
 
-  // Submit form
-  const onSubmit = (data: AuditFormData) => {
+  // Salvar rascunho (versão simplificada)
+  const saveDraft = async () => {
+    const data = form.getValues();
+    data.areas = selectedAreas;
+    
+    try {
+      if (id) {
+        await updateAuditoria.mutateAsync({ 
+          id, 
+          updates: {
+            titulo: data.titulo,
+            descricao: data.descricao,
+            data: data.data,
+            auditor: data.auditor,
+            areas: data.areas,
+            criterios: data.criterios
+          }
+        });
+      } else {
+        await createAuditoria.mutateAsync({
+          titulo: data.titulo,
+          descricao: data.descricao,
+          data: data.data,
+          auditor: data.auditor,
+          areas: data.areas,
+          criterios: data.criterios
+        });
+      }
+      toast("Rascunho salvo com sucesso");
+    } catch (error) {
+      toast.error("Erro ao salvar rascunho");
+      console.error(error);
+    }
+  };
+
+  // Enviar formulário
+  const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
+    data.areas = selectedAreas;
     
-    // In a real app, we would send this data to an API
-    console.log('Audit data:', data);
-    
-    setTimeout(() => {
+    try {
+      if (id) {
+        await updateAuditoria.mutateAsync({ 
+          id, 
+          updates: {
+            titulo: data.titulo,
+            descricao: data.descricao,
+            data: data.data,
+            auditor: data.auditor,
+            areas: data.areas,
+            criterios: data.criterios
+          }
+        });
+        toast.success("Auditoria atualizada com sucesso");
+      } else {
+        const result = await createAuditoria.mutateAsync({
+          titulo: data.titulo,
+          descricao: data.descricao,
+          data: data.data,
+          auditor: data.auditor,
+          areas: data.areas,
+          criterios: data.criterios
+        });
+        toast.success("Auditoria criada com sucesso");
+      }
+      navigate('/audits');
+    } catch (error) {
+      toast.error("Erro ao salvar auditoria");
+      console.error(error);
+    } finally {
       setIsSubmitting(false);
-      toast({
-        title: "Auditoria finalizada",
-        description: "A auditoria foi concluída e o relatório está disponível."
-      });
-      
-      // Redirect to the report page
-      navigate('/reports/new');
-    }, 1500);
+    }
   };
 
-  // Handle score change for an item
-  const setScore = (itemId: number, score: number) => {
-    const currentAnswers = form.getValues('answers');
-    form.setValue('answers', {
-      ...currentAnswers,
-      [itemId]: {
-        ...currentAnswers[itemId],
-        score
-      }
-    });
-    form.trigger('answers');
-  };
-
-  // Handle observation change for an item
-  const setObservation = (itemId: number, observation: string) => {
-    const currentAnswers = form.getValues('answers');
-    form.setValue('answers', {
-      ...currentAnswers,
-      [itemId]: {
-        ...currentAnswers[itemId],
-        observation
-      }
-    });
-  };
-
-  // Handle action plan change for an item
-  const setActionPlan = (itemId: number, actionPlan: string) => {
-    const currentAnswers = form.getValues('answers');
-    form.setValue('answers', {
-      ...currentAnswers,
-      [itemId]: {
-        ...currentAnswers[itemId],
-        actionPlan
-      }
-    });
-  };
-
-  // Mock function to add a photo (in a real app, this would open the camera)
-  const addPhoto = (itemId: number) => {
-    const currentAnswers = form.getValues('answers');
-    // Mock photo URL
-    const mockPhotoUrl = `https://picsum.photos/seed/${itemId}-${Date.now()}/300/200`;
+  // Calcular progresso do formulário
+  const calculateProgress = () => {
+    const { titulo, data, auditor, criterios } = form.getValues();
+    const requiredFields = [titulo, data, auditor];
+    const filledRequiredFields = requiredFields.filter(Boolean).length;
+    const criteriosFilled = criterios.filter(c => c.descricao && c.nota > 0).length;
     
-    form.setValue('answers', {
-      ...currentAnswers,
-      [itemId]: {
-        ...currentAnswers[itemId],
-        photos: [...currentAnswers[itemId].photos, mockPhotoUrl]
-      }
-    });
+    const totalFields = requiredFields.length + criterios.length;
+    const filledFields = filledRequiredFields + criteriosFilled;
     
-    toast({
-      title: "Foto adicionada",
-      description: "A foto foi adicionada ao item da auditoria."
-    });
+    return Math.round((filledFields / totalFields) * 100);
   };
 
-  // Return to units list
-  const returnToUnits = () => {
-    navigate('/units');
-  };
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-full">
+          <p>Carregando auditoria...</p>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -290,221 +260,283 @@ const AuditForm = () => {
             {id ? 'Editar Auditoria' : 'Nova Auditoria'}
           </h1>
           <div className="flex space-x-2">
-            <Button variant="outline" onClick={saveDraft}>
+            <Button variant="outline" onClick={saveDraft} disabled={isSubmitting}>
               <Save className="h-4 w-4 mr-2" /> Salvar Rascunho
             </Button>
-            <Button onClick={form.handleSubmit(onSubmit)} disabled={isSubmitting || !selectedUnit}>
+            <Button onClick={form.handleSubmit(onSubmit)} disabled={isSubmitting}>
               <FileCheck className="h-4 w-4 mr-2" /> 
-              {isSubmitting ? 'Finalizando...' : 'Finalizar Auditoria'}
+              {isSubmitting ? 'Salvando...' : 'Finalizar Auditoria'}
             </Button>
           </div>
         </div>
 
-        {!selectedUnit ? (
-          <Card>
-            <CardContent className="py-6">
-              <div className="text-center space-y-4">
-                <h3 className="text-lg font-medium">Selecione uma Unidade</h3>
-                <p className="text-gray-500">
-                  Por favor, selecione uma unidade para iniciar a auditoria
-                </p>
-                <Button 
-                  onClick={returnToUnits}
-                  className="mt-4"
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" /> Selecionar Unidade
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            {/* Audit Header */}
-            <Card>
-              <CardContent className="py-6">
-                <div className="flex flex-wrap gap-6 justify-between">
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-500">Unidade</p>
-                    <h3 className="text-lg font-medium">{selectedUnit.name}</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-500">Data</p>
-                    <h3 className="text-lg font-medium">{new Date().toLocaleDateString('pt-BR')}</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-500">Técnico</p>
-                    <h3 className="text-lg font-medium">{form.getValues('technician')}</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-500">Progresso</p>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2.5 w-24 bg-gray-200 rounded-full">
-                        <div 
-                          className="h-full bg-audti-secondary rounded-full" 
-                          style={{ width: `${calculateProgress()}%` }}
-                        ></div>
-                      </div>
-                      <span className="font-medium">{calculateProgress()}%</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-500">Nota Média</p>
-                    <h3 className="text-lg font-medium">{calculateScore()} <span className="text-sm text-gray-500">/ 5</span></h3>
-                  </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Informações Gerais</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="titulo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Título da Auditoria*</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Digite o título da auditoria" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="data"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Data*</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="auditor"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Auditor*</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nome do auditor" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="unidadeNome"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Unidade</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione uma unidade" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {unidades.map((unidade) => (
+                              <SelectItem key={unidade.id} value={unidade.nome}>
+                                {unidade.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="descricao"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Descrição</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Descreva o objetivo da auditoria" 
+                          className="min-h-[100px]"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="areas"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Áreas</FormLabel>
+                      <FormControl>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          {areas.map(area => (
+                            <div 
+                              key={area}
+                              className={`p-2 border rounded-md cursor-pointer ${
+                                selectedAreas.includes(area) 
+                                  ? 'bg-audti-primary/20 border-audti-primary' 
+                                  : 'border-gray-200'
+                              }`}
+                              onClick={() => toggleArea(area)}
+                            >
+                              <div className="flex items-center">
+                                <div className={`w-4 h-4 mr-2 rounded border ${
+                                  selectedAreas.includes(area) 
+                                    ? 'bg-audti-primary border-audti-primary' 
+                                    : 'border-gray-300'
+                                }`}>
+                                  {selectedAreas.includes(area) && (
+                                    <div className="flex items-center justify-center h-full text-white">
+                                      ✓
+                                    </div>
+                                  )}
+                                </div>
+                                <span>{area}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CardContent>
             </Card>
 
-            {/* Audit Checklist */}
-            <Form {...form}>
-              <form>
-                {mockCategories.map((category) => (
-                  <Card key={category.id} className="mb-4">
-                    <Collapsible 
-                      open={openCategories[category.id]} 
-                      onOpenChange={() => toggleCategory(category.id)}
-                    >
-                      <CardHeader className="pb-2">
-                        <CollapsibleTrigger className="flex justify-between items-center w-full cursor-pointer">
-                          <CardTitle>{category.name}</CardTitle>
-                          {openCategories[category.id] ? (
-                            <ChevronUp className="h-5 w-5" />
-                          ) : (
-                            <ChevronDown className="h-5 w-5" />
-                          )}
-                        </CollapsibleTrigger>
-                      </CardHeader>
-                      <CollapsibleContent>
-                        <CardContent className="pt-2">
-                          <div className="space-y-6">
-                            {category.items.map((item) => {
-                              const answers = form.getValues('answers');
-                              const answer = answers[item.id];
-                              return (
-                                <div key={item.id} className="p-4 border rounded-md space-y-4">
-                                  <div className="flex justify-between">
-                                    <h4 className="text-md font-medium">{item.question}</h4>
-                                    <span className="text-xs text-gray-500">Peso: {item.weight}</span>
-                                  </div>
-                                  
-                                  {/* Score Selection */}
-                                  <div>
-                                    <FormLabel>Nota:</FormLabel>
-                                    <div className="flex space-x-2 mt-2">
-                                      {[0, 1, 2, 3, 4, 5].map((score) => (
-                                        <Button
-                                          key={score}
-                                          type="button"
-                                          size="sm"
-                                          variant={answer?.score === score ? "default" : "outline"}
-                                          onClick={() => setScore(item.id, score)}
-                                          className={`w-10 ${
-                                            answer?.score === score ? 'bg-audti-primary' : ''
-                                          } ${
-                                            score === 0 ? 'text-red-500 border-red-200' : ''
-                                          }`}
-                                        >
-                                          {score}
-                                        </Button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                  
-                                  {/* Observation */}
-                                  <div>
-                                    <FormLabel>Observação:</FormLabel>
-                                    <Textarea 
-                                      value={answer?.observation || ''}
-                                      onChange={(e) => setObservation(item.id, e.target.value)}
-                                      placeholder="Adicione observações sobre este item"
-                                      className="mt-2"
-                                    />
-                                  </div>
-                                  
-                                  {/* Action Plan */}
-                                  <div>
-                                    <FormLabel>Plano de ação:</FormLabel>
-                                    <Textarea 
-                                      value={answer?.actionPlan || ''}
-                                      onChange={(e) => setActionPlan(item.id, e.target.value)}
-                                      placeholder="Sugira ações para melhorar este item"
-                                      className="mt-2"
-                                    />
-                                  </div>
-                                  
-                                  {/* Photos */}
-                                  <div>
-                                    <div className="flex justify-between items-center">
-                                      <FormLabel>Fotos:</FormLabel>
-                                      <Button 
-                                        type="button" 
-                                        variant="outline" 
-                                        size="sm"
-                                        onClick={() => addPhoto(item.id)}
-                                      >
-                                        <Camera className="h-4 w-4 mr-2" /> 
-                                        Adicionar Foto
-                                      </Button>
-                                    </div>
-                                    
-                                    {answer?.photos && answer.photos.length > 0 && (
-                                      <div className="grid grid-cols-3 gap-2 mt-2">
-                                        {answer.photos.map((photo, index) => (
-                                          <div 
-                                            key={index} 
-                                            className="aspect-video bg-gray-100 rounded overflow-hidden"
-                                          >
-                                            <img 
-                                              src={photo} 
-                                              alt={`Foto ${index + 1}`} 
-                                              className="w-full h-full object-cover"
-                                            />
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
+            <Card>
+              <Collapsible open={openCategories} onOpenChange={toggleCategories}>
+                <CardHeader className="pb-2">
+                  <CollapsibleTrigger className="flex justify-between items-center w-full cursor-pointer">
+                    <CardTitle>Critérios de Avaliação</CardTitle>
+                    {openCategories ? (
+                      <ChevronUp className="h-5 w-5" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5" />
+                    )}
+                  </CollapsibleTrigger>
+                </CardHeader>
+                <CollapsibleContent>
+                  <CardContent className="space-y-6">
+                    {form.watch('criterios').map((criterio, index) => (
+                      <div key={index} className="p-4 border rounded-md space-y-4">
+                        <div className="flex justify-between">
+                          <h4 className="text-md font-medium">Critério {index + 1}</h4>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => removeCriterio(index)}
+                            className="text-red-500 hover:text-red-700"
+                            disabled={form.watch('criterios').length <= 1}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        <div>
+                          <FormLabel>Descrição</FormLabel>
+                          <Input 
+                            value={criterio.descricao}
+                            onChange={(e) => {
+                              const newCriterios = [...form.getValues('criterios')];
+                              newCriterios[index].descricao = e.target.value;
+                              form.setValue('criterios', newCriterios);
+                            }}
+                            placeholder="Descreva o critério de avaliação"
+                          />
+                        </div>
+                        
+                        <div>
+                          <FormLabel>Nota (1-5)</FormLabel>
+                          <div className="flex space-x-2 mt-2">
+                            {[1, 2, 3, 4, 5].map((score) => (
+                              <Button
+                                key={score}
+                                type="button"
+                                size="sm"
+                                variant={criterio.nota === score ? "default" : "outline"}
+                                onClick={() => {
+                                  const newCriterios = [...form.getValues('criterios')];
+                                  newCriterios[index].nota = score;
+                                  form.setValue('criterios', newCriterios);
+                                }}
+                                className={`w-10 ${
+                                  criterio.nota === score ? 'bg-audti-primary' : ''
+                                }`}
+                              >
+                                {score}
+                              </Button>
+                            ))}
                           </div>
-                        </CardContent>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  </Card>
-                ))}
-              </form>
-            </Form>
+                        </div>
+                        
+                        <div>
+                          <FormLabel>Justificativa</FormLabel>
+                          <Textarea 
+                            value={criterio.justificativa}
+                            onChange={(e) => {
+                              const newCriterios = [...form.getValues('criterios')];
+                              newCriterios[index].justificativa = e.target.value;
+                              form.setValue('criterios', newCriterios);
+                            }}
+                            placeholder="Justifique a nota atribuída"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={addCriterio}
+                      className="w-full"
+                    >
+                      <Plus className="h-4 w-4 mr-2" /> Adicionar Critério
+                    </Button>
+                  </CardContent>
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
 
-            {/* Fixed bottom action bar */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex justify-between items-center z-10">
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center">
-                  <span className="font-medium text-gray-700">Progresso: {calculateProgress()}%</span>
-                  <div className="ml-2 h-2 w-32 bg-gray-200 rounded-full">
-                    <div 
-                      className="h-full bg-audti-secondary rounded-full" 
-                      style={{ width: `${calculateProgress()}%` }}
-                    ></div>
-                  </div>
-                </div>
-                <div className="font-medium text-gray-700">
-                  Nota: {calculateScore()} / 5
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                <Button variant="outline" onClick={saveDraft}>
-                  <Save className="h-4 w-4 mr-2" /> Salvar Rascunho
-                </Button>
-                <Button onClick={form.handleSubmit(onSubmit)} disabled={isSubmitting}>
-                  <FileCheck className="h-4 w-4 mr-2" /> 
-                  {isSubmitting ? 'Finalizando...' : 'Finalizar Auditoria'}
-                </Button>
+            <div className="h-20"></div>
+          </form>
+        </Form>
+
+        {/* Fixed bottom action bar */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex justify-between items-center z-10">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center">
+              <span className="font-medium text-gray-700">Progresso: {calculateProgress()}%</span>
+              <div className="ml-2 h-2 w-32 bg-gray-200 rounded-full">
+                <div 
+                  className="h-full bg-audti-secondary rounded-full" 
+                  style={{ width: `${calculateProgress()}%` }}
+                ></div>
               </div>
             </div>
-            <div className="h-20" /> {/* Spacer for the fixed bottom bar */}
-          </>
-        )}
+          </div>
+          <div className="flex space-x-2">
+            <Button variant="outline" onClick={() => navigate('/audits')}>
+              Cancelar
+            </Button>
+            <Button variant="outline" onClick={saveDraft} disabled={isSubmitting}>
+              <Save className="h-4 w-4 mr-2" /> Salvar Rascunho
+            </Button>
+            <Button onClick={form.handleSubmit(onSubmit)} disabled={isSubmitting}>
+              <FileCheck className="h-4 w-4 mr-2" /> 
+              {isSubmitting ? 'Salvando...' : 'Finalizar'}
+            </Button>
+          </div>
+        </div>
       </div>
     </AppLayout>
   );
