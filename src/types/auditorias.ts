@@ -25,7 +25,7 @@ export interface AuditoriaInput {
   descricao?: string | null;
   data: string;
   auditor: string;
-  areas: string[];
+  areas?: string[]; // Made optional
   criterios: Criterio[];
   checklist_id?: string; // ID do checklist selecionado
   unidade?: string; // Nome da unidade selecionada
@@ -36,7 +36,7 @@ export interface AuditoriaUpdate {
   descricao?: string | null;
   data?: string;
   auditor?: string;
-  areas?: string[];
+  areas?: string[]; // Already optional
   criterios?: Criterio[];
   checklist_id?: string; // ID do checklist selecionado
   unidade?: string; // Nome da unidade selecionada

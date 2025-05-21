@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/layouts/AppLayout';
@@ -246,6 +245,7 @@ const AuditForm = () => {
             descricao: data.descricao,
             data: data.data,
             auditor: data.auditor,
+            areas: [], // Add empty areas array
             checklist_id: selectedChecklistId || undefined,
             criterios: data.criterios,
             unidade: data.unidadeNome
@@ -264,6 +264,7 @@ const AuditForm = () => {
           descricao: data.descricao,
           data: data.data,
           auditor: data.auditor,
+          areas: [], // Add empty areas array
           checklist_id: selectedChecklistId || undefined,
           criterios: data.criterios,
           unidade: data.unidadeNome
@@ -295,6 +296,7 @@ const AuditForm = () => {
             descricao: data.descricao,
             data: data.data,
             auditor: data.auditor,
+            areas: [], // Add empty areas array
             checklist_id: selectedChecklistId || undefined,
             criterios: data.criterios,
             unidade: data.unidadeNome
@@ -313,6 +315,7 @@ const AuditForm = () => {
           descricao: data.descricao,
           data: data.data,
           auditor: data.auditor,
+          areas: [], // Add empty areas array
           checklist_id: selectedChecklistId || undefined,
           criterios: data.criterios,
           unidade: data.unidadeNome
