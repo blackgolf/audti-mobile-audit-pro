@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export type Usuario = {
@@ -149,7 +148,6 @@ export const usuarioService = {
       .from("usuarios")
       .update({
         nome: userData.nome,
-        email: userData.email,
         papel: userData.papel,
         ativo: userData.ativo,
         atualizado_em: new Date().toISOString()
@@ -161,6 +159,19 @@ export const usuarioService = {
     if (error) {
       console.error("Erro ao atualizar usuário:", error);
       throw error;
+    }
+
+    // Se uma nova senha foi fornecida, atualizá-la
+    if (userData.senha) {
+      const { error: authError } = await supabase.auth.admin.updateUserById(
+        usuario.user_id,
+        { password: userData.senha }
+      );
+      
+      if (authError) {
+        console.error("Erro ao atualizar senha:", authError);
+        throw authError;
+      }
     }
 
     // Registrar a atividade de atualização de usuário
@@ -225,6 +236,38 @@ export const usuarioService = {
     });
 
     return data as Usuario;
+  },
+
+  // Excluir um usuário
+  async excluirUsuario(id: string): Promise<void> {
+    // Buscar o usuário para obter o user_id e registrar a atividade
+    const usuario = await this.buscarUsuarioPorId(id);
+    
+    // Registrar a atividade antes de excluir
+    await this.registrarAtividade("Exclusão de usuário", {
+      usuario_id: id,
+      usuario_email: usuario.email,
+      usuario_nome: usuario.nome
+    });
+
+    // Excluir o registro na tabela de usuários
+    const { error } = await supabase
+      .from("usuarios")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Erro ao excluir registro de usuário:", error);
+      throw error;
+    }
+
+    // Excluir o usuário da autenticação
+    const { error: authError } = await supabase.auth.admin.deleteUser(usuario.user_id);
+
+    if (authError) {
+      console.error("Erro ao excluir usuário da autenticação:", authError);
+      throw authError;
+    }
   },
 
   // Registrar atividade no log

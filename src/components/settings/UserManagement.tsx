@@ -15,7 +15,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, RefreshCcw, AlertTriangle } from 'lucide-react';
+import { Plus, Search, RefreshCcw, AlertTriangle, Trash } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Card, CardContent } from '@/components/ui/card';
 
 const UserManagement: React.FC = () => {
   const { toast } = useToast();
@@ -39,6 +40,7 @@ const UserManagement: React.FC = () => {
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Usuario | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<Usuario | null>(null);
 
   // Queries
   const { 
@@ -135,6 +137,24 @@ const UserManagement: React.FC = () => {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => usuarioService.excluirUsuario(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      toast({
+        title: "Usuário excluído",
+        description: "O usuário foi excluído com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao excluir usuário",
+        description: error.message || "Ocorreu um erro ao excluir o usuário.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Handlers
   const handleAddUser = () => {
     setSelectedUser(null);
@@ -155,6 +175,19 @@ const UserManagement: React.FC = () => {
     toggleActiveMutation.mutate({ id: usuario.id, ativo });
   };
 
+  const handleDeleteUser = (usuario: Usuario) => {
+    setUserToDelete(usuario);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteUser = () => {
+    if (userToDelete) {
+      deleteMutation.mutate(userToDelete.id);
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
+    }
+  };
+
   const handleSubmitForm = async (data: UsuarioFormData) => {
     if (selectedUser) {
       // Editar
@@ -163,6 +196,7 @@ const UserManagement: React.FC = () => {
       // Criar novo
       await createMutation.mutateAsync(data);
     }
+    setIsFormOpen(false);
   };
 
   const handleResetSubmit = async (id: string, senha?: string) => {
@@ -173,72 +207,77 @@ const UserManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex flex-1 items-center space-x-4 w-full sm:w-auto">
-          <div className="relative w-full sm:w-64">
-            <Input
-              placeholder="Buscar usuário..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+      <Card className="border-none shadow-none">
+        <CardContent className="p-0">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div className="flex flex-1 items-center space-x-4 w-full sm:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Input
+                  placeholder="Buscar usuário..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              </div>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={() => refetchUsers()} 
+                title="Atualizar lista"
+              >
+                <RefreshCcw className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex justify-between w-full sm:w-auto gap-2">
+              <div className="flex gap-2">
+                <Select
+                  value={filterStatus}
+                  onValueChange={(value: any) => setFilterStatus(value)}
+                >
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="ativo">Ativos</SelectItem>
+                    <SelectItem value="inativo">Inativos</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={filterRole}
+                  onValueChange={(value: any) => setFilterRole(value)}
+                >
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue placeholder="Papel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="administrador">Administradores</SelectItem>
+                    <SelectItem value="auditor">Auditores</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button onClick={handleAddUser} className="bg-audti-primary hover:bg-audti-primary/90">
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar Usuário
+              </Button>
+            </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={() => refetchUsers()} 
-            title="Atualizar lista"
-          >
-            <RefreshCcw className="h-4 w-4" />
-          </Button>
-        </div>
 
-        <div className="flex justify-between w-full sm:w-auto gap-2">
-          <div className="flex gap-2">
-            <Select
-              value={filterStatus}
-              onValueChange={(value: any) => setFilterStatus(value)}
-            >
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="ativo">Ativos</SelectItem>
-                <SelectItem value="inativo">Inativos</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={filterRole}
-              onValueChange={(value: any) => setFilterRole(value)}
-            >
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Papel" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="administrador">Administradores</SelectItem>
-                <SelectItem value="auditor">Auditores</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Button onClick={handleAddUser}>
-            <Plus className="mr-2 h-4 w-4" />
-            Adicionar Usuário
-          </Button>
-        </div>
-      </div>
-
-      <UserTable
-        usuarios={filteredUsuarios}
-        onEdit={handleEditUser}
-        onResetPassword={handleResetPassword}
-        onToggleActive={handleToggleActive}
-        isLoading={isLoading}
-      />
+          <UserTable
+            usuarios={filteredUsuarios}
+            onEdit={handleEditUser}
+            onResetPassword={handleResetPassword}
+            onToggleActive={handleToggleActive}
+            onDelete={handleDeleteUser}
+            isLoading={isLoading}
+          />
+        </CardContent>
+      </Card>
 
       {/* Form dialog */}
       <UserForm
@@ -261,12 +300,15 @@ const UserManagement: React.FC = () => {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir usuário</AlertDialogTitle>
             <AlertDialogDescription>
               <div className="flex items-center space-x-2 text-amber-600">
                 <AlertTriangle className="h-5 w-5" />
                 <span>Esta ação não pode ser desfeita.</span>
               </div>
+              <p className="mt-2">
+                Tem certeza que deseja excluir o usuário "{userToDelete?.nome}"?
+              </p>
               <p className="mt-2">
                 Em vez disso, considere desativar o usuário. 
                 Isso manterá o histórico do usuário e permitirá reativá-lo no futuro se necessário.
@@ -275,7 +317,10 @@ const UserManagement: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction 
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={confirmDeleteUser}
+            >
               Sim, excluir
             </AlertDialogAction>
           </AlertDialogFooter>
