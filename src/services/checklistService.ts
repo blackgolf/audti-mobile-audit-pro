@@ -21,7 +21,7 @@ export const checklistService = {
       throw error;
     }
     
-    return data || [];
+    return data as ChecklistItem[];
   },
   
   // Buscar critérios por área
@@ -39,6 +39,6 @@ export const checklistService = {
       throw error;
     }
     
-    return data || [];
+    return data as ChecklistItem[];
   }
 };
