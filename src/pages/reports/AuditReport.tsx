@@ -2,7 +2,8 @@
 import React from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import AppLayout from '@/components/layouts/AppLayout';
-import { useAuditorias } from '@/hooks/useAuditorias';
+import { useQuery } from '@tanstack/react-query';
+import { auditoriaService } from '@/services/auditoriaService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Edit, Printer } from 'lucide-react';
@@ -18,8 +19,13 @@ import {
 const AuditReport = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getAuditoria } = useAuditorias();
-  const { data: auditoria, isLoading, error } = getAuditoria(id || '');
+  
+  // Query for fetching a single auditoria
+  const { data: auditoria, isLoading, error } = useQuery({
+    queryKey: ["auditoria", id],
+    queryFn: () => auditoriaService.getById(id || ''),
+    enabled: !!id,
+  });
 
   // Função para formatar a data
   const formatarData = (dataString?: string) => {
