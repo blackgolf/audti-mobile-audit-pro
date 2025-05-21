@@ -54,6 +54,36 @@ export type Database = {
         }
         Relationships: []
       }
+      checklists: {
+        Row: {
+          area: string
+          created_at: string | null
+          descricao: string
+          id: string
+          obrigatoria: boolean | null
+          ordem: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          area: string
+          created_at?: string | null
+          descricao: string
+          id?: string
+          obrigatoria?: boolean | null
+          ordem?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          area?: string
+          created_at?: string | null
+          descricao?: string
+          id?: string
+          obrigatoria?: boolean | null
+          ordem?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       logs_atividades: {
         Row: {
           acao: string
