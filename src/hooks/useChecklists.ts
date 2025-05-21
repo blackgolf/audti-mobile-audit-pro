@@ -1,10 +1,12 @@
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { checklistService, ChecklistItem } from "@/services/checklistService";
 import { Criterio } from "@/types/auditorias";
+import { toast } from "sonner";
 
 export const useChecklists = () => {
+  const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null);
 
@@ -12,6 +14,12 @@ export const useChecklists = () => {
   const { data: checklists = [], refetch: refetchChecklists } = useQuery({
     queryKey: ["checklists"],
     queryFn: checklistService.getAll,
+  });
+  
+  // Buscar áreas únicas
+  const { data: areas = [] } = useQuery({
+    queryKey: ["checklist-areas"],
+    queryFn: checklistService.getAreas,
   });
 
   // Buscar um checklist específico
@@ -23,7 +31,7 @@ export const useChecklists = () => {
     });
   };
 
-  // Buscar critérios por áreas (função legada, mantida para compatibilidade)
+  // Buscar critérios por áreas
   const getChecklistsByAreas = (areas: string[]) => {
     return useQuery({
       queryKey: ["checklists", areas],
@@ -31,6 +39,77 @@ export const useChecklists = () => {
       enabled: areas.length > 0,
     });
   };
+  
+  // Mutação para criar um novo item
+  const createChecklist = useMutation({
+    mutationFn: (newItem: Omit<ChecklistItem, 'id'>) => 
+      checklistService.create(newItem),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["checklists"] });
+      queryClient.invalidateQueries({ queryKey: ["checklist-areas"] });
+      toast.success("Item de checklist criado com sucesso");
+    },
+    onError: (error) => {
+      console.error("Erro ao criar item de checklist:", error);
+      toast.error("Erro ao criar item de checklist");
+    }
+  });
+  
+  // Mutação para criar vários itens de uma vez
+  const createManyChecklists = useMutation({
+    mutationFn: (newItems: Omit<ChecklistItem, 'id'>[]) => 
+      checklistService.createMany(newItems),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["checklists"] });
+      queryClient.invalidateQueries({ queryKey: ["checklist-areas"] });
+      toast.success("Itens de checklist importados com sucesso");
+    },
+    onError: (error) => {
+      console.error("Erro ao importar itens de checklist:", error);
+      toast.error("Erro ao importar itens de checklist");
+    }
+  });
+  
+  // Mutação para atualizar item existente
+  const updateChecklist = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<ChecklistItem> }) => 
+      checklistService.update(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["checklists"] });
+      toast.success("Item de checklist atualizado com sucesso");
+    },
+    onError: (error) => {
+      console.error("Erro ao atualizar item de checklist:", error);
+      toast.error("Erro ao atualizar item de checklist");
+    }
+  });
+  
+  // Mutação para remover item
+  const deleteChecklist = useMutation({
+    mutationFn: (id: string) => checklistService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["checklists"] });
+      toast.success("Item de checklist removido com sucesso");
+    },
+    onError: (error) => {
+      console.error("Erro ao remover item de checklist:", error);
+      toast.error("Erro ao remover item de checklist");
+    }
+  });
+  
+  // Mutação para remover área inteira
+  const deleteChecklistArea = useMutation({
+    mutationFn: (area: string) => checklistService.deleteArea(area),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["checklists"] });
+      queryClient.invalidateQueries({ queryKey: ["checklist-areas"] });
+      toast.success("Área de checklist removida com sucesso");
+    },
+    onError: (error) => {
+      console.error("Erro ao remover área de checklist:", error);
+      toast.error("Erro ao remover área de checklist");
+    }
+  });
 
   // Converter ChecklistItem para Criterio
   const convertToFormCriterios = (items: ChecklistItem[]): Criterio[] => {
@@ -70,6 +149,7 @@ export const useChecklists = () => {
 
   return {
     checklists,
+    areas,
     getChecklistById,
     getChecklistsByAreas,
     convertToFormCriterios,
@@ -77,6 +157,11 @@ export const useChecklists = () => {
     refetchChecklists,
     selectedChecklistId,
     selectChecklist,
-    getChecklistNames
+    getChecklistNames,
+    createChecklist,
+    createManyChecklists,
+    updateChecklist,
+    deleteChecklist,
+    deleteChecklistArea
   };
 };
