@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -137,7 +136,8 @@ const ChecklistsManager = () => {
         area: newCategoryName.trim(),
         descricao: "Item Inicial",
         obrigatoria: false,
-        ordem: 1
+        ordem: 1,
+        peso: 3 // Added the required peso field
       });
       
       setNewCategoryName('');
