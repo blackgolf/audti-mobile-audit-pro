@@ -26,7 +26,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { AuditoriaFilters as AuditoriaFiltersType } from '@/hooks/useAuditorias';
 import { auditoriaService } from '@/services/auditoriaService';
-import { Search, ChevronDown, Filter, CalendarRange, SortAscending, SortDescending } from 'lucide-react';
+import { Search, ChevronDown, Filter, CalendarRange, ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AuditoriaFiltersProps {
@@ -181,9 +181,9 @@ const AuditoriaFilters = ({ onFilterChange, loading }: AuditoriaFiltersProps) =>
           >
             Data
             {ordenacao.campo === 'data' && ordenacao.ordem === 'asc' ? (
-              <SortAscending className="ml-1 h-4 w-4" />
+              <ArrowUp className="ml-1 h-4 w-4" />
             ) : (
-              <SortDescending className="ml-1 h-4 w-4" />
+              <ArrowDown className="ml-1 h-4 w-4" />
             )}
           </Button>
           <Button
@@ -197,9 +197,9 @@ const AuditoriaFilters = ({ onFilterChange, loading }: AuditoriaFiltersProps) =>
           >
             Título
             {ordenacao.campo === 'titulo' && ordenacao.ordem === 'asc' ? (
-              <SortAscending className="ml-1 h-4 w-4" />
+              <ArrowUp className="ml-1 h-4 w-4" />
             ) : (
-              <SortDescending className="ml-1 h-4 w-4" />
+              <ArrowDown className="ml-1 h-4 w-4" />
             )}
           </Button>
         </div>
@@ -316,9 +316,9 @@ const AuditoriaFilters = ({ onFilterChange, loading }: AuditoriaFiltersProps) =>
               >
                 Data
                 {ordenacao.campo === 'data' && ordenacao.ordem === 'asc' ? (
-                  <SortAscending className="ml-1 h-4 w-4" />
+                  <ArrowUp className="ml-1 h-4 w-4" />
                 ) : (
-                  <SortDescending className="ml-1 h-4 w-4" />
+                  <ArrowDown className="ml-1 h-4 w-4" />
                 )}
               </Button>
               <Button
@@ -330,9 +330,9 @@ const AuditoriaFilters = ({ onFilterChange, loading }: AuditoriaFiltersProps) =>
               >
                 Título
                 {ordenacao.campo === 'titulo' && ordenacao.ordem === 'asc' ? (
-                  <SortAscending className="ml-1 h-4 w-4" />
+                  <ArrowUp className="ml-1 h-4 w-4" />
                 ) : (
-                  <SortDescending className="ml-1 h-4 w-4" />
+                  <ArrowDown className="ml-1 h-4 w-4" />
                 )}
               </Button>
             </div>

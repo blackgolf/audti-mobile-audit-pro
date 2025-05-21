@@ -5,7 +5,7 @@ import AppLayout from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useQuery } from '@tanstack/react-query';
-import { useAuditorias, AuditoriaFilters } from '@/hooks/useAuditorias';
+import { useAuditorias, AuditoriaFilters as AuditoriaFiltersType } from '@/hooks/useAuditorias';
 import { Plus, Trash2, FileText } from 'lucide-react';
 import { 
   AlertDialog, 
@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
-import AuditoriaFilters from '@/components/audits/AuditoriaFilters';
+import AuditoriaFiltersComponent from '@/components/audits/AuditoriaFilters';
 import AuditoriaPagination from '@/components/audits/AuditoriaPagination';
 import { auditoriaService } from '@/services/auditoriaService';
 
@@ -29,7 +29,7 @@ const AuditsList = () => {
   const [auditToDelete, setAuditToDelete] = useState<string | null>(null);
   const { user } = useAuth();
   
-  const [filters, setFilters] = useState<AuditoriaFilters>({
+  const [filters, setFilters] = useState<AuditoriaFiltersType>({
     pagina: 1,
     itensPorPagina: 10,
     ordenacao: { campo: 'data', ordem: 'desc' }
@@ -82,7 +82,7 @@ const AuditsList = () => {
     }));
   };
   
-  const handleFilterChange = (newFilters: AuditoriaFilters) => {
+  const handleFilterChange = (newFilters: AuditoriaFiltersType) => {
     setFilters(newFilters);
   };
   
@@ -134,7 +134,7 @@ const AuditsList = () => {
         </div>
         
         {/* Componente de Filtros */}
-        <AuditoriaFilters 
+        <AuditoriaFiltersComponent 
           onFilterChange={handleFilterChange}
           loading={isLoading || isDeleting}
         />
