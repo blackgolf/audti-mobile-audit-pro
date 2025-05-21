@@ -16,6 +16,10 @@ export type Database = {
           criterios: Json
           data: string
           descricao: string | null
+          finalizada: boolean | null
+          finalizada_em: string | null
+          finalizada_por: string | null
+          finalizada_por_nome: string | null
           id: string
           titulo: string
           user_id: string | null
@@ -26,6 +30,10 @@ export type Database = {
           criterios?: Json
           data: string
           descricao?: string | null
+          finalizada?: boolean | null
+          finalizada_em?: string | null
+          finalizada_por?: string | null
+          finalizada_por_nome?: string | null
           id?: string
           titulo: string
           user_id?: string | null
@@ -36,9 +44,73 @@ export type Database = {
           criterios?: Json
           data?: string
           descricao?: string | null
+          finalizada?: boolean | null
+          finalizada_em?: string | null
+          finalizada_por?: string | null
+          finalizada_por_nome?: string | null
           id?: string
           titulo?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      logs_atividades: {
+        Row: {
+          acao: string
+          criado_em: string | null
+          detalhes: Json | null
+          id: string
+          user_id: string
+          usuario_nome: string
+        }
+        Insert: {
+          acao: string
+          criado_em?: string | null
+          detalhes?: Json | null
+          id?: string
+          user_id: string
+          usuario_nome: string
+        }
+        Update: {
+          acao?: string
+          criado_em?: string | null
+          detalhes?: Json | null
+          id?: string
+          user_id?: string
+          usuario_nome?: string
+        }
+        Relationships: []
+      }
+      usuarios: {
+        Row: {
+          ativo: boolean | null
+          atualizado_em: string | null
+          criado_em: string | null
+          email: string
+          id: string
+          nome: string
+          papel: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          criado_em?: string | null
+          email: string
+          id?: string
+          nome: string
+          papel: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          criado_em?: string | null
+          email?: string
+          id?: string
+          nome?: string
+          papel?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -47,7 +119,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_initial_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

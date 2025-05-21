@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { RoleProvider } from "@/contexts/RoleContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -29,34 +30,36 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Index />} />
-            <Route path="/support" element={<SupportPortal />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            
-            {/* Routes that don't require auth but can benefit from auth info */}
-            <Route element={<ProtectedRoute requireAuth={false} />}>
-              <Route path="/audits" element={<AuditsList />} />
-              <Route path="/reports/:id" element={<AuditReport />} />
-            </Route>
-            
-            {/* Protected Routes - require authentication */}
-            <Route element={<ProtectedRoute requireAuth={true} />}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/audits/new" element={<AuditForm />} />
-              <Route path="/audits/:id" element={<AuditForm />} />
-              <Route path="/units" element={<UnitsList />} />
-              <Route path="/checklists" element={<ChecklistsManager />} />
-              <Route path="/reports" element={<ReportsList />} />
-              <Route path="/reports/new" element={<Navigate to="/reports" replace />} />
-              <Route path="/settings" element={<Settings />} />
-            </Route>
-            
-            {/* Catch All Route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <RoleProvider>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<Index />} />
+              <Route path="/support" element={<SupportPortal />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              
+              {/* Routes that don't require auth but can benefit from auth info */}
+              <Route element={<ProtectedRoute requireAuth={false} />}>
+                <Route path="/audits" element={<AuditsList />} />
+                <Route path="/reports/:id" element={<AuditReport />} />
+              </Route>
+              
+              {/* Protected Routes - require authentication */}
+              <Route element={<ProtectedRoute requireAuth={true} />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/audits/new" element={<AuditForm />} />
+                <Route path="/audits/:id" element={<AuditForm />} />
+                <Route path="/units" element={<UnitsList />} />
+                <Route path="/checklists" element={<ChecklistsManager />} />
+                <Route path="/reports" element={<ReportsList />} />
+                <Route path="/reports/new" element={<Navigate to="/reports" replace />} />
+                <Route path="/settings" element={<Settings />} />
+              </Route>
+              
+              {/* Catch All Route */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </RoleProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
