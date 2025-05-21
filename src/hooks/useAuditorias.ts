@@ -5,15 +5,31 @@ import { auditoriaService } from "@/services/auditoriaService";
 import { Auditoria, AuditoriaInput, AuditoriaUpdate } from "@/types/auditorias";
 import { toast } from "sonner";
 
+export type AuditoriaFilters = {
+  areas?: string[];
+  unidade?: string;
+  dataInicio?: string;
+  dataFim?: string;
+  busca?: string;
+  ordenacao?: {
+    campo: 'data' | 'titulo';
+    ordem: 'asc' | 'desc';
+  };
+  pagina: number;
+  itensPorPagina: number;
+}
+
 export const useAuditorias = () => {
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch all auditorias
-  const { data: auditorias = [], refetch: refetchAuditorias } = useQuery({
-    queryKey: ["auditorias"],
-    queryFn: auditoriaService.getAll,
-  });
+  // Fetch all auditorias with optional filters
+  const getAuditorias = (filters?: AuditoriaFilters) => {
+    return useQuery({
+      queryKey: ["auditorias", filters],
+      queryFn: () => auditoriaService.getAll(filters),
+    });
+  };
 
   // Fetch a single auditoria by id
   const getAuditoria = (id: string) => {
@@ -77,12 +93,11 @@ export const useAuditorias = () => {
   });
 
   return {
-    auditorias,
+    getAuditorias,
     getAuditoria,
     createAuditoria,
     updateAuditoria,
     deleteAuditoria,
     isLoading,
-    refetchAuditorias,
   };
 };

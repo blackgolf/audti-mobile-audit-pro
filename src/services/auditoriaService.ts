@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Auditoria, AuditoriaInput, AuditoriaUpdate } from "@/types/auditorias";
 import { Json } from "@/integrations/supabase/types";
-import { useAuth } from "@/contexts/AuthContext";
+import { AuditoriaFilters } from "@/hooks/useAuditorias";
 
 export const auditoriaService = {
   async create(auditoria: AuditoriaInput): Promise<Auditoria | null> {
@@ -42,17 +42,62 @@ export const auditoriaService = {
     } : null;
   },
 
-  async getAll(): Promise<Auditoria[]> {
-    // Com as políticas RLS configuradas, o Supabase já filtrará automaticamente
-    // para retornar apenas as auditorias do usuário autenticado
-    const { data, error } = await supabase
+  async getAll(filters?: AuditoriaFilters): Promise<{auditorias: Auditoria[], count: number}> {
+    // Iniciamos a consulta
+    let query = supabase
       .from("auditorias")
-      .select('*')
-      .order('data', { ascending: false });
+      .select('*', { count: 'exact' });
+    
+    // Aplicamos os filtros se existirem
+    if (filters) {
+      // Filtro por áreas
+      if (filters.areas && filters.areas.length > 0) {
+        query = query.contains('areas', filters.areas);
+      }
+      
+      // Filtro por unidade (assumindo que unidade é armazenada em algum campo como "unidade" ou está em "descricao")
+      if (filters.unidade) {
+        query = query.ilike('descricao', `%${filters.unidade}%`);
+      }
+      
+      // Filtro por período
+      if (filters.dataInicio) {
+        query = query.gte('data', filters.dataInicio);
+      }
+      
+      if (filters.dataFim) {
+        query = query.lte('data', filters.dataFim);
+      }
+      
+      // Busca textual
+      if (filters.busca) {
+        const searchTerm = `%${filters.busca}%`;
+        query = query.or(`titulo.ilike.${searchTerm},descricao.ilike.${searchTerm},auditor.ilike.${searchTerm}`);
+      }
+      
+      // Ordenação
+      if (filters.ordenacao) {
+        query = query.order(filters.ordenacao.campo, { ascending: filters.ordenacao.ordem === 'asc' });
+      } else {
+        // Ordenação padrão por data mais recente
+        query = query.order('data', { ascending: false });
+      }
+      
+      // Paginação
+      const startIndex = (filters.pagina - 1) * filters.itensPorPagina;
+      query = query.range(startIndex, startIndex + filters.itensPorPagina - 1);
+    } else {
+      // Se não houver filtros, aplicamos apenas a ordenação padrão
+      query = query.order('data', { ascending: false });
+    }
+    
+    // Executamos a consulta
+    const { data, error, count } = await query;
     
     if (error) throw new Error(error.message);
+    
     // Convertemos cada item do resultado para o formato do frontend
-    return data ? data.map(item => ({
+    const auditorias = data ? data.map(item => ({
       id: item.id,
       titulo: item.titulo,
       descricao: item.descricao,
@@ -62,6 +107,11 @@ export const auditoriaService = {
       criterios: item.criterios as unknown as Auditoria["criterios"],
       user_id: item.user_id
     })) : [];
+    
+    return { 
+      auditorias, 
+      count: count || 0 
+    };
   },
 
   async getById(id: string): Promise<Auditoria | null> {
@@ -130,5 +180,55 @@ export const auditoriaService = {
       .eq('id', id);
     
     if (error) throw new Error(error.message);
+  },
+  
+  // Obter todas as áreas únicas cadastradas nas auditorias
+  async getAreas(): Promise<string[]> {
+    const { data, error } = await supabase
+      .from("auditorias")
+      .select('areas');
+      
+    if (error) throw new Error(error.message);
+    
+    // Extrair todas as áreas únicas
+    const allAreas = new Set<string>();
+    data?.forEach(item => {
+      item.areas.forEach((area: string) => {
+        allAreas.add(area);
+      });
+    });
+    
+    return Array.from(allAreas).sort();
+  },
+  
+  // Obter todas as unidades únicas cadastradas nas descrições das auditorias
+  async getUnidades(): Promise<string[]> {
+    // Esta é uma implementação simplificada. Na prática, você provavelmente teria
+    // um campo específico para unidades ou uma tabela separada.
+    // Aqui, estou assumindo que a unidade é mencionada na descrição
+    const { data, error } = await supabase
+      .from("auditorias")
+      .select('descricao');
+      
+    if (error) throw new Error(error.message);
+    
+    // Extrai todas as menções de unidades (isso é apenas um exemplo simplificado)
+    // Em um sistema real, você precisaria de uma lógica mais robusta ou estrutura de dados adequada
+    const unidadesPattern = /(Unidade|Filial|Sede):\s*([^,;\n]+)/g;
+    const unidades = new Set<string>();
+    
+    data?.forEach(item => {
+      if (!item.descricao) return;
+      
+      let match;
+      while ((match = unidadesPattern.exec(item.descricao)) !== null) {
+        unidades.add(match[2].trim());
+      }
+    });
+    
+    // Adiciona algumas unidades fixas para o exemplo
+    ["Brasília", "São Paulo", "Rio de Janeiro", "Belo Horizonte"].forEach(u => unidades.add(u));
+    
+    return Array.from(unidades).sort();
   }
 };

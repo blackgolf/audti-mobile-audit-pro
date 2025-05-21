@@ -3,10 +3,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useAuditorias } from '@/hooks/useAuditorias';
-import { Plus, Search, Trash2, FileText } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { useAuditorias, AuditoriaFilters } from '@/hooks/useAuditorias';
+import { Plus, Trash2, FileText } from 'lucide-react';
 import { 
   AlertDialog, 
   AlertDialogAction, 
@@ -18,21 +18,32 @@ import {
   AlertDialogTitle 
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { Skeleton } from '@/components/ui/skeleton';
+import AuditoriaFilters from '@/components/audits/AuditoriaFilters';
+import AuditoriaPagination from '@/components/audits/AuditoriaPagination';
+import { auditoriaService } from '@/services/auditoriaService';
 
 const AuditsList = () => {
   const navigate = useNavigate();
-  const { auditorias, deleteAuditoria, isLoading, refetchAuditorias } = useAuditorias();
-  const [searchTerm, setSearchTerm] = useState('');
+  const { deleteAuditoria, isLoading: isDeleting } = useAuditorias();
   const [auditToDelete, setAuditToDelete] = useState<string | null>(null);
   const { user } = useAuth();
   
-  // Filtra auditorias baseado no termo de busca
-  const filteredAuditorias = auditorias.filter(
-    audit => 
-      audit.titulo.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      audit.auditor.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
+  const [filters, setFilters] = useState<AuditoriaFilters>({
+    pagina: 1,
+    itensPorPagina: 10,
+    ordenacao: { campo: 'data', ordem: 'desc' }
+  });
+  
+  // Buscar auditorias com filtros
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['auditoriasList', filters],
+    queryFn: () => auditoriaService.getAll(filters)
+  });
+  
+  const auditorias = data?.auditorias || [];
+  const totalItems = data?.count || 0;
+  
   // Calcula a média de notas dos critérios para cada auditoria
   const getMediaNotas = (criterios: any[]) => {
     if (!criterios || criterios.length === 0) return "N/A";
@@ -56,12 +67,46 @@ const AuditsList = () => {
     if (auditToDelete) {
       await deleteAuditoria.mutateAsync(auditToDelete);
       setAuditToDelete(null);
-      refetchAuditorias();
+      refetch();
     }
   };
   
   const handleDeleteCancel = () => {
     setAuditToDelete(null);
+  };
+  
+  const handlePageChange = (page: number) => {
+    setFilters(prev => ({
+      ...prev,
+      pagina: page
+    }));
+  };
+  
+  const handleFilterChange = (newFilters: AuditoriaFilters) => {
+    setFilters(newFilters);
+  };
+  
+  // Renderizar skeletons durante o carregamento
+  const renderSkeletons = () => {
+    return Array(5).fill(null).map((_, index) => (
+      <TableRow key={`skeleton-${index}`}>
+        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+        <TableCell className="text-right">
+          <div className="flex justify-end space-x-2">
+            <Skeleton className="h-8 w-8" />
+            {user && (
+              <>
+                <Skeleton className="h-8 w-8" />
+                <Skeleton className="h-8 w-8" />
+              </>
+            )}
+          </div>
+        </TableCell>
+      </TableRow>
+    ));
   };
 
   return (
@@ -70,38 +115,50 @@ const AuditsList = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-audti-primary">Auditorias</h1>
-            <p className="text-gray-600">Listagem de todas as auditorias realizadas</p>
+            <p className="text-gray-600">
+              {totalItems > 0 ? 
+                `${totalItems} auditoria${totalItems !== 1 ? 's' : ''} encontrada${totalItems !== 1 ? 's' : ''}` : 
+                'Nenhuma auditoria encontrada'
+              }
+            </p>
           </div>
           
-          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-            <div className="relative w-full md:w-60">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-              <Input
-                placeholder="Buscar auditorias..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-            
-            {user && (
-              <Button 
-                onClick={() => navigate('/audits/new')}
-                className="bg-audti-primary hover:bg-audti-accent w-full md:w-auto"
-              >
-                <Plus size={18} className="mr-1" /> Nova Auditoria
-              </Button>
-            )}
-          </div>
+          {user && (
+            <Button 
+              onClick={() => navigate('/audits/new')}
+              className="bg-audti-primary hover:bg-audti-accent w-full md:w-auto"
+            >
+              <Plus size={18} className="mr-1" /> Nova Auditoria
+            </Button>
+          )}
         </div>
         
+        {/* Componente de Filtros */}
+        <AuditoriaFilters 
+          onFilterChange={handleFilterChange}
+          loading={isLoading || isDeleting}
+        />
+        
         {isLoading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-audti-primary"></div>
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Título</TableHead>
+                  <TableHead>Auditor</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Média</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {renderSkeletons()}
+              </TableBody>
+            </Table>
           </div>
-        ) : filteredAuditorias.length === 0 ? (
+        ) : auditorias.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <p className="text-gray-500 text-lg">Nenhuma auditoria encontrada</p>
+            <p className="text-gray-500 text-lg">Nenhuma auditoria encontrada com os filtros selecionados.</p>
             {user && (
               <Button 
                 onClick={() => navigate('/audits/new')} 
@@ -124,7 +181,7 @@ const AuditsList = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAuditorias.map((audit) => (
+                {auditorias.map((audit) => (
                   <TableRow key={audit.id} className="hover:bg-gray-50">
                     <TableCell className="font-medium">{audit.titulo}</TableCell>
                     <TableCell>{audit.auditor}</TableCell>
@@ -157,6 +214,7 @@ const AuditsList = () => {
                             onClick={() => setAuditToDelete(audit.id)}
                             className="text-red-500 hover:bg-red-50 hover:text-red-600"
                             title="Excluir auditoria"
+                            disabled={isDeleting}
                           >
                             <Trash2 size={16} />
                           </Button>
@@ -167,6 +225,17 @@ const AuditsList = () => {
                 ))}
               </TableBody>
             </Table>
+            
+            {/* Componente de Paginação */}
+            <div className="p-4 border-t">
+              <AuditoriaPagination
+                currentPage={filters.pagina}
+                totalItems={totalItems}
+                itemsPerPage={filters.itensPorPagina}
+                onPageChange={handlePageChange}
+                loading={isLoading || isDeleting}
+              />
+            </div>
           </div>
         )}
       </div>
