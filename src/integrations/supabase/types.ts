@@ -18,6 +18,7 @@ export type Database = {
           descricao: string | null
           id: string
           titulo: string
+          user_id: string | null
         }
         Insert: {
           areas?: string[]
@@ -27,6 +28,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           titulo: string
+          user_id?: string | null
         }
         Update: {
           areas?: string[]
@@ -36,6 +38,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           titulo?: string
+          user_id?: string | null
         }
         Relationships: []
       }

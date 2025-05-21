@@ -14,6 +14,7 @@ export interface Auditoria {
   auditor: string;
   areas: string[];
   criterios: Criterio[];
+  user_id?: string;
 }
 
 export interface AuditoriaInput {

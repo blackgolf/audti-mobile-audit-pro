@@ -20,15 +20,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requireAuth, children }
     );
   }
 
+  // Se a rota requer autenticação e o usuário não está logado, redirecionar para o login
   if (requireAuth && !user) {
     return <Navigate to="/login" replace />;
   }
 
-  return (
-    <>
-      {children || <Outlet />}
-    </>
-  );
+  // Renderizar o conteúdo protegido
+  return <>{children || <Outlet />}</>;
 };
 
 export default ProtectedRoute;
