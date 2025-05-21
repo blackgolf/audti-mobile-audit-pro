@@ -31,6 +31,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const usuarioData = await usuarioService.buscarUsuarioAtual();
+      console.log("Usuario data loaded:", usuarioData); // Debug log
       setUsuario(usuarioData);
     } catch (error) {
       console.error("Erro ao carregar dados do usuário:", error);
