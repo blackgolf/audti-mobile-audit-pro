@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { usuarioService, Usuario } from '@/services/usuarioService';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface RoleContextType {
   usuario: Usuario | null;
@@ -27,6 +28,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchUsuario = async () => {
     if (!user) {
       setUsuario(null);
+      setLoading(false);
       return;
     }
 
@@ -37,18 +39,22 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error("Erro ao carregar dados do usuário:", error);
       setUsuario(null);
+      // Show a toast notification for the error
+      toast.error("Não foi possível carregar os dados do usuário.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const refreshUsuario = async () => {
     setLoading(true);
     await fetchUsuario();
-    setLoading(false);
   };
 
   useEffect(() => {
+    // Only fetch user data once auth is loaded and when user changes
     if (!authLoading) {
-      fetchUsuario().then(() => setLoading(false));
+      fetchUsuario();
     }
   }, [user, authLoading]);
 

@@ -27,7 +27,7 @@ export const checklistService = {
       .order("area")
       .order("ordem");
     
-    if (error) throw new Error(error.message);
+    if (error) throw error;
     
     // Ensure peso is defined for all items
     return (data || []).map(item => ensurePeso(item));
@@ -40,7 +40,7 @@ export const checklistService = {
       .select("area")
       .order("area");
       
-    if (error) throw new Error(error.message);
+    if (error) throw error;
     
     // Extract unique areas
     const areas = new Set<string>();
@@ -60,7 +60,7 @@ export const checklistService = {
       .order("area")
       .order("ordem");
     
-    if (error) throw new Error(error.message);
+    if (error) throw error;
     
     // Ensure peso is defined for all items
     return (data || []).map(item => ensurePeso(item));
@@ -74,7 +74,7 @@ export const checklistService = {
       .eq("id", id)
       .maybeSingle();
     
-    if (error) throw new Error(error.message);
+    if (error) throw error;
     
     if (!data) return null;
     
@@ -95,7 +95,7 @@ export const checklistService = {
       .select()
       .single();
     
-    if (error) throw new Error(error.message);
+    if (error) throw error;
     return data ? ensurePeso(data) : null;
   },
   
@@ -114,7 +114,7 @@ export const checklistService = {
       .insert(itemsToInsert)
       .select();
     
-    if (error) throw new Error(error.message);
+    if (error) throw error;
     return data ? data.map(item => ensurePeso(item)) : [];
   },
   
@@ -127,7 +127,7 @@ export const checklistService = {
       .select()
       .single();
     
-    if (error) throw new Error(error.message);
+    if (error) throw error;
     return data ? ensurePeso(data) : null;
   },
   
@@ -138,7 +138,7 @@ export const checklistService = {
       .delete()
       .eq("id", id);
     
-    if (error) throw new Error(error.message);
+    if (error) throw error;
   },
   
   // Remover todos os itens de uma área
@@ -148,6 +148,6 @@ export const checklistService = {
       .delete()
       .eq("area", area);
     
-    if (error) throw new Error(error.message);
+    if (error) throw error;
   }
 };

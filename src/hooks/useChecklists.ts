@@ -49,9 +49,9 @@ export const useChecklists = () => {
       queryClient.invalidateQueries({ queryKey: ["checklist-areas"] });
       toast.success("Item de checklist criado com sucesso");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Erro ao criar item de checklist:", error);
-      toast.error("Erro ao criar item de checklist");
+      toast.error(`Erro ao criar item de checklist: ${error?.message || 'Falha na operação'}`);
     }
   });
   
@@ -64,9 +64,9 @@ export const useChecklists = () => {
       queryClient.invalidateQueries({ queryKey: ["checklist-areas"] });
       toast.success("Itens de checklist importados com sucesso");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Erro ao importar itens de checklist:", error);
-      toast.error("Erro ao importar itens de checklist");
+      toast.error(`Erro ao importar itens de checklist: ${error?.message || 'Falha na operação'}`);
     }
   });
   
@@ -78,9 +78,9 @@ export const useChecklists = () => {
       queryClient.invalidateQueries({ queryKey: ["checklists"] });
       toast.success("Item de checklist atualizado com sucesso");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Erro ao atualizar item de checklist:", error);
-      toast.error("Erro ao atualizar item de checklist");
+      toast.error(`Erro ao atualizar item de checklist: ${error?.message || 'Falha na operação'}`);
     }
   });
   
@@ -91,9 +91,9 @@ export const useChecklists = () => {
       queryClient.invalidateQueries({ queryKey: ["checklists"] });
       toast.success("Item de checklist removido com sucesso");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Erro ao remover item de checklist:", error);
-      toast.error("Erro ao remover item de checklist");
+      toast.error(`Erro ao remover item de checklist: ${error?.message || 'Falha na operação'}`);
     }
   });
   
@@ -105,9 +105,9 @@ export const useChecklists = () => {
       queryClient.invalidateQueries({ queryKey: ["checklist-areas"] });
       toast.success("Área de checklist removida com sucesso");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Erro ao remover área de checklist:", error);
-      toast.error("Erro ao remover área de checklist");
+      toast.error(`Erro ao remover área de checklist: ${error?.message || 'Falha na operação'}`);
     }
   });
 
