@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { usuarioService, Usuario } from '@/services/usuarioService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,6 +17,7 @@ const RoleContext = createContext<RoleContextType | undefined>(undefined);
 export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const { user, loading: authLoading } = useAuth();
 
   // Check for administrator role and active status
@@ -29,6 +29,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) {
       setUsuario(null);
       setLoading(false);
+      setHasAttemptedLoad(true);
       return;
     }
 
@@ -36,13 +37,23 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const usuarioData = await usuarioService.buscarUsuarioAtual();
       console.log("Usuario data loaded:", usuarioData); // Debug log
       setUsuario(usuarioData);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao carregar dados do usuário:", error);
       setUsuario(null);
+      
+      // Check for infinite recursion error
+      const errorMessage = error?.message || "Não foi possível carregar os dados do usuário.";
+      const isRecursionError = errorMessage.includes("infinite recursion detected");
+      
       // Show a toast notification for the error
-      toast.error("Não foi possível carregar os dados do usuário.");
+      if (isRecursionError) {
+        toast.error("Erro de permissão no banco de dados. Por favor, verifique as políticas de segurança do Supabase.");
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
+      setHasAttemptedLoad(true);
     }
   };
 
@@ -53,10 +64,11 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Only fetch user data once auth is loaded and when user changes
-    if (!authLoading) {
+    // Also prevents infinite loop if we keep getting errors
+    if (!authLoading && !hasAttemptedLoad) {
       fetchUsuario();
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, hasAttemptedLoad]);
 
   return (
     <RoleContext.Provider

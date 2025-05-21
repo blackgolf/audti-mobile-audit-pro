@@ -14,12 +14,20 @@ export const useChecklists = () => {
   const { data: checklists = [], refetch: refetchChecklists } = useQuery({
     queryKey: ["checklists"],
     queryFn: checklistService.getAll,
+    onError: (error: any) => {
+      console.error("Erro ao buscar checklists:", error);
+      toast.error(error?.message || "Erro ao carregar os checklists");
+    }
   });
   
   // Buscar áreas únicas
   const { data: areas = [] } = useQuery({
     queryKey: ["checklist-areas"],
     queryFn: checklistService.getAreas,
+    onError: (error: any) => {
+      console.error("Erro ao buscar áreas:", error);
+      toast.error(error?.message || "Erro ao carregar as áreas de checklist");
+    }
   });
 
   // Buscar um checklist específico
@@ -28,6 +36,10 @@ export const useChecklists = () => {
       queryKey: ["checklist", id],
       queryFn: () => checklistService.getById(id),
       enabled: !!id,
+      onError: (error: any) => {
+        console.error(`Erro ao buscar checklist ${id}:`, error);
+        toast.error(error?.message || "Erro ao carregar o item de checklist");
+      }
     });
   };
 
@@ -37,6 +49,10 @@ export const useChecklists = () => {
       queryKey: ["checklists", areas],
       queryFn: () => checklistService.getByAreas(areas),
       enabled: areas.length > 0,
+      onError: (error: any) => {
+        console.error("Erro ao buscar checklists por áreas:", error);
+        toast.error(error?.message || "Erro ao carregar os itens por áreas");
+      }
     });
   };
   
@@ -51,7 +67,7 @@ export const useChecklists = () => {
     },
     onError: (error: any) => {
       console.error("Erro ao criar item de checklist:", error);
-      toast.error(`Erro ao criar item de checklist: ${error?.message || 'Falha na operação'}`);
+      toast.error(error?.message || "Erro ao criar item de checklist");
     }
   });
   
@@ -66,7 +82,7 @@ export const useChecklists = () => {
     },
     onError: (error: any) => {
       console.error("Erro ao importar itens de checklist:", error);
-      toast.error(`Erro ao importar itens de checklist: ${error?.message || 'Falha na operação'}`);
+      toast.error(error?.message || "Erro ao importar itens de checklist");
     }
   });
   
@@ -80,7 +96,7 @@ export const useChecklists = () => {
     },
     onError: (error: any) => {
       console.error("Erro ao atualizar item de checklist:", error);
-      toast.error(`Erro ao atualizar item de checklist: ${error?.message || 'Falha na operação'}`);
+      toast.error(error?.message || "Erro ao atualizar item de checklist");
     }
   });
   
@@ -93,7 +109,7 @@ export const useChecklists = () => {
     },
     onError: (error: any) => {
       console.error("Erro ao remover item de checklist:", error);
-      toast.error(`Erro ao remover item de checklist: ${error?.message || 'Falha na operação'}`);
+      toast.error(error?.message || "Erro ao remover item de checklist");
     }
   });
   
@@ -107,7 +123,7 @@ export const useChecklists = () => {
     },
     onError: (error: any) => {
       console.error("Erro ao remover área de checklist:", error);
-      toast.error(`Erro ao remover área de checklist: ${error?.message || 'Falha na operação'}`);
+      toast.error(error?.message || "Erro ao remover área de checklist");
     }
   });
 
