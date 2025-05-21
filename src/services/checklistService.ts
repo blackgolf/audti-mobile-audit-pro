@@ -7,7 +7,7 @@ export interface ChecklistItem {
   descricao: string;
   obrigatoria: boolean;
   ordem: number | null;
-  peso?: number; // Adicionando campo de peso para as perguntas
+  peso: number; // Changed from optional to required
 }
 
 export const checklistService = {
@@ -20,7 +20,12 @@ export const checklistService = {
       .order("ordem");
     
     if (error) throw new Error(error.message);
-    return data || [];
+    
+    // Ensure peso is defined for all items
+    return (data || []).map(item => ({
+      ...item,
+      peso: item.peso || 3, // Default peso to 3 if not present
+    }));
   },
   
   // Recuperar áreas de checklists únicas
@@ -51,7 +56,12 @@ export const checklistService = {
       .order("ordem");
     
     if (error) throw new Error(error.message);
-    return data || [];
+    
+    // Ensure peso is defined for all items
+    return (data || []).map(item => ({
+      ...item,
+      peso: item.peso || 3, // Default peso to 3 if not present
+    }));
   },
   
   // Recuperar um item específico
@@ -63,14 +73,26 @@ export const checklistService = {
       .maybeSingle();
     
     if (error) throw new Error(error.message);
-    return data;
+    
+    if (!data) return null;
+    
+    // Ensure peso is defined
+    return {
+      ...data,
+      peso: data.peso || 3, // Default peso to 3 if not present
+    };
   },
   
   // Criar novo item de checklist
   async create(item: Omit<ChecklistItem, 'id'>): Promise<ChecklistItem | null> {
+    const itemToInsert = {
+      ...item,
+      peso: item.peso || 3 // Ensure peso is defined
+    };
+    
     const { data, error } = await supabase
       .from("checklists")
-      .insert(item)
+      .insert(itemToInsert)
       .select()
       .single();
     
@@ -82,9 +104,15 @@ export const checklistService = {
   async createMany(items: Omit<ChecklistItem, 'id'>[]): Promise<ChecklistItem[] | null> {
     if (!items.length) return [];
     
+    // Ensure peso is defined for all items
+    const itemsToInsert = items.map(item => ({
+      ...item,
+      peso: item.peso || 3 // Default peso to 3 if not present
+    }));
+    
     const { data, error } = await supabase
       .from("checklists")
-      .insert(items)
+      .insert(itemsToInsert)
       .select();
     
     if (error) throw new Error(error.message);

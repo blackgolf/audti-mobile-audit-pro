@@ -98,11 +98,14 @@ const ChecklistsManager = () => {
     return grouped;
   }, [checklists]);
 
+  // Fix: Define proper type for filtered categories as a tuple array with specific types
+  type CategoryTuple = [string, ChecklistItem[]];
+
   // Filter categories and items based on search term
-  const filteredCategories = React.useMemo(() => {
-    if (!searchTerm) return Object.entries(groupedChecklists);
+  const filteredCategories = React.useMemo((): CategoryTuple[] => {
+    if (!searchTerm) return Object.entries(groupedChecklists) as CategoryTuple[];
     
-    return Object.entries(groupedChecklists).filter(([categoryName, items]) => {
+    return (Object.entries(groupedChecklists).filter(([categoryName, items]) => {
       const categoryMatches = categoryName.toLowerCase().includes(searchTerm.toLowerCase());
       const itemsMatch = items.some(item => 
         item.descricao.toLowerCase().includes(searchTerm.toLowerCase())
@@ -114,7 +117,7 @@ const ChecklistsManager = () => {
       items.filter(item => 
         searchTerm ? item.descricao.toLowerCase().includes(searchTerm.toLowerCase()) : true
       )
-    ]);
+    ])) as CategoryTuple[];
   }, [groupedChecklists, searchTerm]);
   
   // Handler for adding new category
