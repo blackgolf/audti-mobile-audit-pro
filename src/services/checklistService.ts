@@ -11,7 +11,8 @@ export interface ChecklistItem {
 export const checklistService = {
   // Buscar todos os critérios
   getAll: async (): Promise<ChecklistItem[]> => {
-    const { data, error } = await supabase
+    // Usamos any para contornar a limitação do tipo até que os tipos do Supabase sejam atualizados
+    const { data, error } = await (supabase as any)
       .from('checklists')
       .select('*')
       .order('ordem', { ascending: true });
@@ -28,7 +29,8 @@ export const checklistService = {
   getByAreas: async (areas: string[]): Promise<ChecklistItem[]> => {
     if (!areas.length) return [];
     
-    const { data, error } = await supabase
+    // Usamos any para contornar a limitação do tipo até que os tipos do Supabase sejam atualizados
+    const { data, error } = await (supabase as any)
       .from('checklists')
       .select('*')
       .in('area', areas)
