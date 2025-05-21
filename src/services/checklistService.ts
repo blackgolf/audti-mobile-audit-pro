@@ -7,10 +7,16 @@ export interface ChecklistItem {
   descricao: string;
   obrigatoria: boolean;
   ordem: number | null;
-  peso: number; // Changed from optional to required
+  peso: number; // Required field
   created_at?: string | null;
   updated_at?: string | null;
 }
+
+// Helper function to ensure peso is defined
+const ensurePeso = (item: any): ChecklistItem => ({
+  ...item,
+  peso: item.peso !== undefined ? item.peso : 3 // Default peso to 3 if undefined
+});
 
 export const checklistService = {
   // Recuperar todos os itens de checklist
@@ -24,10 +30,7 @@ export const checklistService = {
     if (error) throw new Error(error.message);
     
     // Ensure peso is defined for all items
-    return (data || []).map(item => ({
-      ...item,
-      peso: item.peso ?? 3, // Default peso to 3 if not present
-    }));
+    return (data || []).map(item => ensurePeso(item));
   },
   
   // Recuperar áreas de checklists únicas
@@ -60,10 +63,7 @@ export const checklistService = {
     if (error) throw new Error(error.message);
     
     // Ensure peso is defined for all items
-    return (data || []).map(item => ({
-      ...item,
-      peso: item.peso ?? 3, // Default peso to 3 if not present
-    }));
+    return (data || []).map(item => ensurePeso(item));
   },
   
   // Recuperar um item específico
@@ -79,17 +79,14 @@ export const checklistService = {
     if (!data) return null;
     
     // Ensure peso is defined
-    return {
-      ...data,
-      peso: data.peso ?? 3, // Default peso to 3 if not present
-    };
+    return ensurePeso(data);
   },
   
   // Criar novo item de checklist
   async create(item: Omit<ChecklistItem, 'id'>): Promise<ChecklistItem | null> {
     const itemToInsert = {
       ...item,
-      peso: item.peso ?? 3 // Ensure peso is defined
+      peso: item.peso !== undefined ? item.peso : 3 // Ensure peso is defined
     };
     
     const { data, error } = await supabase
@@ -99,7 +96,7 @@ export const checklistService = {
       .single();
     
     if (error) throw new Error(error.message);
-    return data ? { ...data, peso: data.peso ?? 3 } : null;
+    return data ? ensurePeso(data) : null;
   },
   
   // Criar vários itens de checklist de uma vez
@@ -109,7 +106,7 @@ export const checklistService = {
     // Ensure peso is defined for all items
     const itemsToInsert = items.map(item => ({
       ...item,
-      peso: item.peso ?? 3 // Default peso to 3 if not present
+      peso: item.peso !== undefined ? item.peso : 3 // Default peso to 3 if not present
     }));
     
     const { data, error } = await supabase
@@ -118,7 +115,7 @@ export const checklistService = {
       .select();
     
     if (error) throw new Error(error.message);
-    return data ? data.map(item => ({ ...item, peso: item.peso ?? 3 })) : [];
+    return data ? data.map(item => ensurePeso(item)) : [];
   },
   
   // Atualizar item existente
@@ -131,7 +128,7 @@ export const checklistService = {
       .single();
     
     if (error) throw new Error(error.message);
-    return data ? { ...data, peso: data.peso ?? 3 } : null;
+    return data ? ensurePeso(data) : null;
   },
   
   // Remover item
