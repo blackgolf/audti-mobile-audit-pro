@@ -29,7 +29,8 @@ import {
 import { useForm } from 'react-hook-form';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuditorias } from '@/hooks/useAuditorias';
-import { Auditoria } from '@/types/auditorias';
+import { useChecklists } from '@/hooks/useChecklists';
+import { Auditoria, Criterio } from '@/types/auditorias';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 // Lista de unidades para seleção
@@ -75,6 +76,8 @@ const AuditForm = () => {
   const [openCategories, setOpenCategories] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
+  const [loadedCriterios, setLoadedCriterios] = useState<Criterio[]>([]);
+  const [customCriterios, setCustomCriterios] = useState<Criterio[]>([]);
   
   const { 
     getAuditoria,
@@ -82,6 +85,11 @@ const AuditForm = () => {
     updateAuditoria,
     isLoading: isLoadingAuditorias 
   } = useAuditorias();
+  
+  const { getChecklistsByAreas, convertToFormCriterios } = useChecklists();
+
+  // Buscar critérios baseados nas áreas selecionadas
+  const { data: checklist = [], isLoading: isLoadingChecklist } = getChecklistsByAreas(selectedAreas);
 
   // Carregar auditoria existente se estiver editando
   const { data: auditoria, isLoading } = getAuditoria(id || '');
@@ -94,7 +102,7 @@ const AuditForm = () => {
       data: new Date().toISOString().split('T')[0],
       auditor: '',
       areas: [],
-      criterios: [{ descricao: '', nota: 0, justificativa: '' }],
+      criterios: [],
       unidadeNome: ''
     }
   });
@@ -112,24 +120,78 @@ const AuditForm = () => {
         unidadeNome: 'Unidade' // Este campo não é armazenado no banco de dados
       });
       setSelectedAreas(auditoria.areas);
+      
+      // Separar critérios carregados do checklist e critérios customizados
+      if (auditoria.criterios && auditoria.criterios.length > 0) {
+        setCustomCriterios(auditoria.criterios);
+      }
     }
   }, [auditoria, form, id]);
 
-  // Adicionar novo critério
+  // Atualizar critérios quando as áreas selecionadas ou o checklist mudarem
+  useEffect(() => {
+    if (checklist && checklist.length > 0) {
+      const newCriterios = convertToFormCriterios(checklist);
+      
+      // Manter as notas e justificativas de critérios já existentes
+      const updatedCriterios = newCriterios.map(criterio => {
+        const existingCriterio = form.getValues('criterios').find(
+          c => c.descricao === criterio.descricao
+        );
+        
+        if (existingCriterio) {
+          return {
+            ...criterio,
+            nota: existingCriterio.nota,
+            justificativa: existingCriterio.justificativa
+          };
+        }
+        
+        return criterio;
+      });
+      
+      setLoadedCriterios(updatedCriterios);
+      
+      // Combinar critérios do checklist com critérios customizados
+      const allCriterios = [...updatedCriterios, ...customCriterios.filter(
+        c => !updatedCriterios.some(uc => uc.descricao === c.descricao)
+      )];
+      
+      form.setValue('criterios', allCriterios);
+    } else {
+      // Se não há critérios do checklist, manter apenas os customizados
+      if (!id) { // Apenas para nova auditoria, não para edição
+        form.setValue('criterios', customCriterios);
+        setLoadedCriterios([]);
+      }
+    }
+  }, [checklist, selectedAreas, form]);
+
+  // Adicionar novo critério customizado
   const addCriterio = () => {
+    const newCriterio = { descricao: '', nota: 0, justificativa: '' };
+    setCustomCriterios([...customCriterios, newCriterio]);
+    
     const currentCriterios = form.getValues('criterios');
-    form.setValue('criterios', [
-      ...currentCriterios,
-      { descricao: '', nota: 0, justificativa: '' }
-    ]);
+    form.setValue('criterios', [...currentCriterios, newCriterio]);
   };
 
   // Remover critério
   const removeCriterio = (index: number) => {
     const currentCriterios = form.getValues('criterios');
-    if (currentCriterios.length > 1) {
-      form.setValue('criterios', currentCriterios.filter((_, i) => i !== index));
+    const criterioToRemove = currentCriterios[index];
+    
+    // Verificar se é um critério carregado do checklist ou customizado
+    if (loadedCriterios.some(c => c.descricao === criterioToRemove.descricao)) {
+      // Não podemos remover critérios carregados do checklist
+      toast.error("Não é possível remover critérios carregados automaticamente. Desmarque a área para removê-los.");
+      return;
     }
+    
+    const newCustomCriterios = customCriterios.filter(c => c.descricao !== criterioToRemove.descricao);
+    setCustomCriterios(newCustomCriterios);
+    
+    form.setValue('criterios', currentCriterios.filter((_, i) => i !== index));
   };
 
   // Toggle categoria aberta/fechada
@@ -183,7 +245,7 @@ const AuditForm = () => {
           criterios: data.criterios
         });
       }
-      toast("Rascunho salvo com sucesso");
+      toast.success("Rascunho salvo com sucesso");
     } catch (error) {
       toast.error("Erro ao salvar rascunho");
       console.error(error);
@@ -236,10 +298,15 @@ const AuditForm = () => {
     const filledRequiredFields = requiredFields.filter(Boolean).length;
     const criteriosFilled = criterios.filter(c => c.descricao && c.nota > 0).length;
     
-    const totalFields = requiredFields.length + criterios.length;
+    const totalFields = requiredFields.length + (criterios.length || 1);
     const filledFields = filledRequiredFields + criteriosFilled;
     
     return Math.round((filledFields / totalFields) * 100);
+  };
+
+  // Verifica se um critério é carregado automaticamente ou customizado
+  const isCriterioFromChecklist = (descricao: string) => {
+    return loadedCriterios.some(c => c.descricao === descricao);
   };
 
   if (isLoading) {
@@ -426,17 +493,30 @@ const AuditForm = () => {
                 </CardHeader>
                 <CollapsibleContent>
                   <CardContent className="space-y-6">
+                    {isLoadingChecklist && (
+                      <div className="flex justify-center py-4">
+                        <p>Carregando critérios...</p>
+                      </div>
+                    )}
+                    
                     {form.watch('criterios').map((criterio, index) => (
-                      <div key={index} className="p-4 border rounded-md space-y-4">
+                      <div 
+                        key={index} 
+                        className={`p-4 border rounded-md space-y-4 ${
+                          isCriterioFromChecklist(criterio.descricao)
+                            ? 'border-audti-primary/30 bg-audti-primary/5'
+                            : 'border-gray-200'
+                        }`}
+                      >
                         <div className="flex justify-between">
-                          <h4 className="text-md font-medium">Critério {index + 1}</h4>
+                          <h4 className="text-md font-medium">Critério {index + 1} {isCriterioFromChecklist(criterio.descricao) ? '(Automático)' : '(Customizado)'}</h4>
                           <Button 
                             type="button" 
                             variant="ghost" 
                             size="sm"
                             onClick={() => removeCriterio(index)}
                             className="text-red-500 hover:text-red-700"
-                            disabled={form.watch('criterios').length <= 1}
+                            disabled={isCriterioFromChecklist(criterio.descricao)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -450,8 +530,22 @@ const AuditForm = () => {
                               const newCriterios = [...form.getValues('criterios')];
                               newCriterios[index].descricao = e.target.value;
                               form.setValue('criterios', newCriterios);
+                              
+                              // Se for critério customizado, atualizar o estado
+                              if (!isCriterioFromChecklist(criterio.descricao)) {
+                                const newCustomCriterios = [...customCriterios];
+                                const customIndex = newCustomCriterios.findIndex(c => 
+                                  c.descricao === criterio.descricao
+                                );
+                                if (customIndex !== -1) {
+                                  newCustomCriterios[customIndex].descricao = e.target.value;
+                                  setCustomCriterios(newCustomCriterios);
+                                }
+                              }
                             }}
                             placeholder="Descreva o critério de avaliação"
+                            readOnly={isCriterioFromChecklist(criterio.descricao)}
+                            className={isCriterioFromChecklist(criterio.descricao) ? "bg-gray-50" : ""}
                           />
                         </div>
                         
@@ -468,6 +562,27 @@ const AuditForm = () => {
                                   const newCriterios = [...form.getValues('criterios')];
                                   newCriterios[index].nota = score;
                                   form.setValue('criterios', newCriterios);
+                                  
+                                  // Atualizar também no estado apropriado (loadedCriterios ou customCriterios)
+                                  if (isCriterioFromChecklist(criterio.descricao)) {
+                                    const newLoadedCriterios = [...loadedCriterios];
+                                    const loadedIndex = newLoadedCriterios.findIndex(c => 
+                                      c.descricao === criterio.descricao
+                                    );
+                                    if (loadedIndex !== -1) {
+                                      newLoadedCriterios[loadedIndex].nota = score;
+                                      setLoadedCriterios(newLoadedCriterios);
+                                    }
+                                  } else {
+                                    const newCustomCriterios = [...customCriterios];
+                                    const customIndex = newCustomCriterios.findIndex(c => 
+                                      c.descricao === criterio.descricao
+                                    );
+                                    if (customIndex !== -1) {
+                                      newCustomCriterios[customIndex].nota = score;
+                                      setCustomCriterios(newCustomCriterios);
+                                    }
+                                  }
                                 }}
                                 className={`w-10 ${
                                   criterio.nota === score ? 'bg-audti-primary' : ''
@@ -487,6 +602,27 @@ const AuditForm = () => {
                               const newCriterios = [...form.getValues('criterios')];
                               newCriterios[index].justificativa = e.target.value;
                               form.setValue('criterios', newCriterios);
+                              
+                              // Atualizar também no estado apropriado
+                              if (isCriterioFromChecklist(criterio.descricao)) {
+                                const newLoadedCriterios = [...loadedCriterios];
+                                const loadedIndex = newLoadedCriterios.findIndex(c => 
+                                  c.descricao === criterio.descricao
+                                );
+                                if (loadedIndex !== -1) {
+                                  newLoadedCriterios[loadedIndex].justificativa = e.target.value;
+                                  setLoadedCriterios(newLoadedCriterios);
+                                }
+                              } else {
+                                const newCustomCriterios = [...customCriterios];
+                                const customIndex = newCustomCriterios.findIndex(c => 
+                                  c.descricao === criterio.descricao
+                                );
+                                if (customIndex !== -1) {
+                                  newCustomCriterios[customIndex].justificativa = e.target.value;
+                                  setCustomCriterios(newCustomCriterios);
+                                }
+                              }
                             }}
                             placeholder="Justifique a nota atribuída"
                           />
@@ -500,7 +636,7 @@ const AuditForm = () => {
                       onClick={addCriterio}
                       className="w-full"
                     >
-                      <Plus className="h-4 w-4 mr-2" /> Adicionar Critério
+                      <Plus className="h-4 w-4 mr-2" /> Adicionar Critério Customizado
                     </Button>
                   </CardContent>
                 </CollapsibleContent>
