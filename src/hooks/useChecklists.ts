@@ -11,35 +11,35 @@ export const useChecklists = () => {
   const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null);
 
   // Buscar todos os checklists
-  const { data: checklists = [], refetch: refetchChecklists } = useQuery({
+  const { data: checklists = [], refetch: refetchChecklists, error: checklistsError } = useQuery({
     queryKey: ["checklists"],
-    queryFn: checklistService.getAll,
-    onError: (error: any) => {
-      console.error("Erro ao buscar checklists:", error);
-      toast.error(error?.message || "Erro ao carregar os checklists");
-    }
+    queryFn: checklistService.getAll
   });
   
   // Buscar áreas únicas
-  const { data: areas = [] } = useQuery({
+  const { data: areas = [], error: areasError } = useQuery({
     queryKey: ["checklist-areas"],
-    queryFn: checklistService.getAreas,
-    onError: (error: any) => {
-      console.error("Erro ao buscar áreas:", error);
-      toast.error(error?.message || "Erro ao carregar as áreas de checklist");
-    }
+    queryFn: checklistService.getAreas
   });
+
+  // Handle errors for checklists
+  if (checklistsError) {
+    console.error("Erro ao buscar checklists:", checklistsError);
+    toast.error(checklistsError?.message || "Erro ao carregar os checklists");
+  }
+
+  // Handle errors for areas
+  if (areasError) {
+    console.error("Erro ao buscar áreas:", areasError);
+    toast.error(areasError?.message || "Erro ao carregar as áreas de checklist");
+  }
 
   // Buscar um checklist específico
   const getChecklistById = (id: string) => {
     return useQuery({
       queryKey: ["checklist", id],
       queryFn: () => checklistService.getById(id),
-      enabled: !!id,
-      onError: (error: any) => {
-        console.error(`Erro ao buscar checklist ${id}:`, error);
-        toast.error(error?.message || "Erro ao carregar o item de checklist");
-      }
+      enabled: !!id
     });
   };
 
@@ -48,11 +48,7 @@ export const useChecklists = () => {
     return useQuery({
       queryKey: ["checklists", areas],
       queryFn: () => checklistService.getByAreas(areas),
-      enabled: areas.length > 0,
-      onError: (error: any) => {
-        console.error("Erro ao buscar checklists por áreas:", error);
-        toast.error(error?.message || "Erro ao carregar os itens por áreas");
-      }
+      enabled: areas.length > 0
     });
   };
   
