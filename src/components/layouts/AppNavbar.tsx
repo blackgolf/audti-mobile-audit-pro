@@ -3,13 +3,11 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, LogOut, LayoutDashboard, ClipboardCheck, Building, FileCheck, FilePieChart, Settings, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRole } from '@/contexts/RoleContext';
 
 const AppNavbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   const { user, signOut } = useAuth();
-  const { isAdmin } = useRole();
   
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   

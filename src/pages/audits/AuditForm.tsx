@@ -20,8 +20,10 @@ import {
   ChevronDown, 
   ChevronUp, 
   Plus, 
+  Camera, 
   Save, 
   FileCheck,
+  ArrowLeft,
   Trash2
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -29,6 +31,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useAuditorias } from '@/hooks/useAuditorias';
 import { useChecklists } from '@/hooks/useChecklists';
 import { Auditoria, Criterio } from '@/types/auditorias';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ChecklistItem } from '@/services/checklistService';
 import { useRespostasAuditoria } from '@/hooks/useRespostasAuditoria';
 import { RespostaAuditoria } from '@/services/respostaAuditoriaService';
@@ -43,13 +46,25 @@ const unidades = [
   { id: 6, nome: 'Brasal Combustíveis - Sudoeste' },
 ];
 
+// Lista de áreas para seleção
+const areas = [
+  'Infraestrutura',
+  'Segurança',
+  'Sistemas',
+  'Redes',
+  'Banco de Dados',
+  'Aplicações',
+  'Desenvolvimento',
+  'Suporte',
+];
+
 // Estrutura para o formulário de auditoria
 interface FormData {
   titulo: string;
   descricao: string;
   data: string;
   auditor: string;
-  checklist: string; // Novo campo para seleção de checklist
+  areas: string[];
   criterios: {
     descricao: string;
     nota: number;
@@ -64,7 +79,7 @@ const AuditForm = () => {
   const navigate = useNavigate();
   const [openCategories, setOpenCategories] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null);
+  const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [loadedCriterios, setLoadedCriterios] = useState<Criterio[]>([]);
   const [customCriterios, setCustomCriterios] = useState<Criterio[]>([]);
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
@@ -77,18 +92,16 @@ const AuditForm = () => {
     isLoading: isLoadingAuditorias 
   } = useAuditorias();
   
-  const { 
-    checklists,
-    getChecklistNames,
-    convertToFormCriterios,
-    isLoading: isLoadingChecklists
-  } = useChecklists();
+  const { getChecklistsByAreas, convertToFormCriterios } = useChecklists();
 
   const { 
     getRespostas, 
     createManyRespostas, 
     isLoading: isLoadingRespostas 
   } = useRespostasAuditoria(id);
+
+  // Buscar critérios baseados nas áreas selecionadas
+  const { data: checklistItems = [], isLoading: isLoadingChecklist } = getChecklistsByAreas(selectedAreas);
 
   // Buscar respostas existentes para a auditoria (em caso de edição)
   const { data: respostasData = [], isLoading: isLoadingRespostasData } = getRespostas();
@@ -103,11 +116,18 @@ const AuditForm = () => {
       descricao: '',
       data: new Date().toISOString().split('T')[0],
       auditor: '',
-      checklist: '',
+      areas: [],
       criterios: [],
       unidadeNome: ''
     }
   });
+
+  // Atualizar checklist quando o checklistItems mudar
+  useEffect(() => {
+    if (checklistItems && checklistItems.length > 0) {
+      setChecklist(checklistItems);
+    }
+  }, [checklistItems]);
 
   // Processar respostas quando carregadas
   useEffect(() => {
@@ -130,15 +150,11 @@ const AuditForm = () => {
         descricao: auditoria.descricao || '',
         data: auditoria.data,
         auditor: auditoria.auditor,
-        checklist: auditoria.checklist_id || '', // Novo campo
+        areas: auditoria.areas,
         criterios: auditoria.criterios,
-        unidadeNome: auditoria.unidade || '' // Este campo pode não estar no banco ainda
+        unidadeNome: 'Unidade' // Este campo não é armazenado no banco de dados
       });
-      
-      // Se a auditoria tiver um checklist_id, selecione-o
-      if (auditoria.checklist_id) {
-        setSelectedChecklistId(auditoria.checklist_id);
-      }
+      setSelectedAreas(auditoria.areas);
       
       // Separar critérios carregados do checklist e critérios customizados
       if (auditoria.criterios && auditoria.criterios.length > 0) {
@@ -151,35 +167,60 @@ const AuditForm = () => {
     }
   }, [auditoria, form, id]);
 
-  // Efeito para carregar checklist quando o ID do checklist mudar
+  // Atualizar critérios quando as áreas selecionadas ou o checklist mudarem
   useEffect(() => {
-    if (selectedChecklistId) {
-      // Filtrar checklists pelo ID selecionado
-      const selectedItems = checklists.filter(item => item.area === selectedChecklistId);
-      if (selectedItems.length > 0) {
-        setChecklist(selectedItems);
+    if (checklist && checklist.length > 0) {
+      const newCriterios: Criterio[] = checklist.map(item => {
+        // Verificar se já existe resposta para este item do checklist
+        const resposta = respostas[item.id];
         
-        // Converter items do checklist para critérios e adicionar ao formulário
-        const newCriterios = convertToFormCriterios(selectedItems);
-        setLoadedCriterios(newCriterios);
+        // Se existir resposta, usar os valores dela
+        if (resposta) {
+          return {
+            descricao: item.descricao,
+            nota: resposta.nota || 0,
+            justificativa: resposta.justificativa || '',
+            checklist_id: item.id
+          };
+        }
         
-        // Combinar com critérios customizados, se existirem
-        const allCriterios = [...newCriterios, ...customCriterios];
-        form.setValue('criterios', allCriterios);
-      }
+        // Verificar se já existe critério para este item do checklist no formulário
+        const existingCriterio = form.getValues('criterios').find(
+          c => c.checklist_id === item.id
+        );
+        
+        if (existingCriterio) {
+          return {
+            ...existingCriterio,
+            checklist_id: item.id
+          };
+        }
+        
+        // Se não existir, criar um novo critério
+        return {
+          descricao: item.descricao,
+          nota: 0,
+          justificativa: '',
+          checklist_id: item.id
+        };
+      });
+      
+      setLoadedCriterios(newCriterios);
+      
+      // Combinar critérios do checklist com critérios customizados
+      const allCriterios = [...newCriterios, ...customCriterios.filter(
+        c => !newCriterios.some(nc => nc.checklist_id && nc.checklist_id === c.checklist_id)
+      )];
+      
+      form.setValue('criterios', allCriterios);
     } else {
-      setChecklist([]);
-      // Manter apenas critérios customizados se não houver checklist selecionado
-      form.setValue('criterios', customCriterios);
-      setLoadedCriterios([]);
+      // Se não há critérios do checklist, manter apenas os customizados
+      if (!id) { // Apenas para nova auditoria, não para edição
+        form.setValue('criterios', customCriterios);
+        setLoadedCriterios([]);
+      }
     }
-  }, [selectedChecklistId, checklists, form]);
-
-  // Handler para mudança de checklist
-  const handleChecklistChange = (checklistId: string) => {
-    setSelectedChecklistId(checklistId);
-    form.setValue('checklist', checklistId);
-  };
+  }, [checklist, respostas, form, id]);
 
   // Adicionar novo critério customizado
   const addCriterio = () => {
@@ -198,7 +239,7 @@ const AuditForm = () => {
     // Verificar se é um critério carregado do checklist ou customizado
     if (criterioToRemove.checklist_id) {
       // Não podemos remover critérios carregados do checklist
-      toast.error("Não é possível remover critérios carregados automaticamente. Selecione outro checklist para substituí-los.");
+      toast.error("Não é possível remover critérios carregados automaticamente. Desmarque a área para removê-los.");
       return;
     }
     
@@ -211,6 +252,24 @@ const AuditForm = () => {
   // Toggle categoria aberta/fechada
   const toggleCategories = () => {
     setOpenCategories(prev => !prev);
+  };
+
+  // Adicionar/remover área
+  const toggleArea = (area: string) => {
+    setSelectedAreas(prev => {
+      if (prev.includes(area)) {
+        return prev.filter(a => a !== area);
+      } else {
+        return [...prev, area];
+      }
+    });
+    
+    const currentAreas = form.getValues('areas');
+    if (currentAreas.includes(area)) {
+      form.setValue('areas', currentAreas.filter(a => a !== area));
+    } else {
+      form.setValue('areas', [...currentAreas, area]);
+    }
   };
 
   // Salvar respostas de checklist
@@ -236,6 +295,7 @@ const AuditForm = () => {
   // Salvar rascunho (versão simplificada)
   const saveDraft = async () => {
     const data = form.getValues();
+    data.areas = selectedAreas;
     
     try {
       if (id) {
@@ -246,10 +306,8 @@ const AuditForm = () => {
             descricao: data.descricao,
             data: data.data,
             auditor: data.auditor,
-            areas: [], // Add empty areas array
-            checklist_id: selectedChecklistId || undefined,
-            criterios: data.criterios,
-            unidade: data.unidadeNome
+            areas: data.areas,
+            criterios: data.criterios
           }
         });
         
@@ -265,10 +323,8 @@ const AuditForm = () => {
           descricao: data.descricao,
           data: data.data,
           auditor: data.auditor,
-          areas: [], // Add empty areas array
-          checklist_id: selectedChecklistId || undefined,
-          criterios: data.criterios,
-          unidade: data.unidadeNome
+          areas: data.areas,
+          criterios: data.criterios
         });
         
         // Salvar respostas do checklist
@@ -287,6 +343,7 @@ const AuditForm = () => {
   // Enviar formulário
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
+    data.areas = selectedAreas;
     
     try {
       if (id) {
@@ -297,10 +354,8 @@ const AuditForm = () => {
             descricao: data.descricao,
             data: data.data,
             auditor: data.auditor,
-            areas: [], // Add empty areas array
-            checklist_id: selectedChecklistId || undefined,
-            criterios: data.criterios,
-            unidade: data.unidadeNome
+            areas: data.areas,
+            criterios: data.criterios
           }
         });
         
@@ -316,10 +371,8 @@ const AuditForm = () => {
           descricao: data.descricao,
           data: data.data,
           auditor: data.auditor,
-          areas: [], // Add empty areas array
-          checklist_id: selectedChecklistId || undefined,
-          criterios: data.criterios,
-          unidade: data.unidadeNome
+          areas: data.areas,
+          criterios: data.criterios
         });
         
         // Salvar respostas do checklist
@@ -365,9 +418,6 @@ const AuditForm = () => {
       </AppLayout>
     );
   }
-
-  // Obter lista de checklists disponíveis
-  const checklistOptions = getChecklistNames();
 
   return (
     <AppLayout>
@@ -486,33 +536,43 @@ const AuditForm = () => {
                   )}
                 />
                 
-                {/* Novo seletor de Checklist (substituindo a seleção de áreas) */}
                 <FormField
                   control={form.control}
-                  name="checklist"
+                  name="areas"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Checklist</FormLabel>
-                      <Select
-                        onValueChange={(value) => handleChecklistChange(value)}
-                        value={selectedChecklistId || ''}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione um checklist" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem key="no-checklist" value="no-checklist">Nenhum (só critérios customizados)</SelectItem>
-                          {checklistOptions.map((option) => (
-                            <SelectItem key={option.id} value={option.id}>
-                              {option.name}
-                            </SelectItem>
+                      <FormLabel>Áreas</FormLabel>
+                      <FormControl>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          {areas.map(area => (
+                            <div 
+                              key={area}
+                              className={`p-2 border rounded-md cursor-pointer ${
+                                selectedAreas.includes(area) 
+                                  ? 'bg-audti-primary/20 border-audti-primary' 
+                                  : 'border-gray-200'
+                              }`}
+                              onClick={() => toggleArea(area)}
+                            >
+                              <div className="flex items-center">
+                                <div className={`w-4 h-4 mr-2 rounded border ${
+                                  selectedAreas.includes(area) 
+                                    ? 'bg-audti-primary border-audti-primary' 
+                                    : 'border-gray-300'
+                                }`}>
+                                  {selectedAreas.includes(area) && (
+                                    <div className="flex items-center justify-center h-full text-white">
+                                      ✓
+                                    </div>
+                                  )}
+                                </div>
+                                <span>{area}</span>
+                              </div>
+                            </div>
                           ))}
-                        </SelectContent>
-                      </Select>
+                        </div>
+                      </FormControl>
                       <FormMessage />
-                      {isLoadingChecklists && <p className="text-sm text-muted-foreground mt-2">Carregando checklists...</p>}
                     </FormItem>
                   )}
                 />
@@ -533,7 +593,7 @@ const AuditForm = () => {
                 </CardHeader>
                 <CollapsibleContent>
                   <CardContent className="space-y-6">
-                    {(isLoadingChecklists || isLoadingRespostasData) && (
+                    {(isLoadingChecklist || isLoadingRespostasData) && (
                       <div className="flex justify-center py-4">
                         <p>Carregando critérios...</p>
                       </div>

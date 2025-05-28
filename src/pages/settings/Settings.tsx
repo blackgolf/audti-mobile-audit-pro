@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import AppLayout from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,13 +19,6 @@ const Settings = () => {
   const { isAdmin, usuario, loading: roleLoading } = useRole();
   const [activeTab, setActiveTab] = useState<string>("company");
   
-  // Set users tab as default for admins
-  useEffect(() => {
-    if (isAdmin) {
-      setActiveTab("users");
-    }
-  }, [isAdmin]);
-  
   // Mock function to save settings
   const handleSave = () => {
     toast({
@@ -33,19 +26,6 @@ const Settings = () => {
       description: "As configurações foram atualizadas com sucesso."
     });
   };
-
-  console.log("Is admin:", isAdmin); // Debug log
-  console.log("Current user:", usuario); // Debug log
-
-  if (roleLoading) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin h-10 w-10 border-4 border-audti-primary border-t-transparent rounded-full"></div>
-        </div>
-      </AppLayout>
-    );
-  }
 
   return (
     <AppLayout>
